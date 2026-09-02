@@ -57,3 +57,8 @@ functions/node_modules/
 *serviceaccount*.json
 *-firebase-adminsdk-*.json
 service-account*.json
+
+# Android release signing
+android/key.properties
+*.jks
+*.keystore

@@ -1,0 +1,5 @@
+# 複製成 android/key.properties（此檔會被 git 忽略），填入你的 keystore 資訊
+storePassword=你的store密碼
+keyPassword=你的key密碼
+keyAlias=stocktw
+storeFile=/Users/willl/stocktw-release.jks
