@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 擁有者 email（跟 functions/index.js 的 OWNER_EMAIL 一致）
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email == 'yayalin322@gmail.com';
+    }
+
+    // 公告：所有人可讀，只有擁有者可改
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+
+    // 裝置 / 提醒：App 用自己的 FCM token 當文件 id 寫入；不開放讀取
+    match /devices/{token} {
+      allow read: if isOwner();
+      allow create, update: if request.resource.data.token == token;
+      allow delete: if false;
+    }
+    match /deviceAlerts/{token} {
+      allow read: if isOwner();
+      allow create, update: if request.resource.data.token == token;
+      allow delete: if false;
+    }
+
+    // 廣播佇列：擁有者從管理後台寫入，排程腳本（服務帳號）讀取後標記
+    match /broadcasts/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner();
+      allow update, delete: if false;
+    }
+  }
+}

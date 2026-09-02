@@ -1,0 +1,25 @@
+name: check-alerts
+
+on:
+  schedule:
+    - cron: "*/15 * * * *" # 每 15 分鐘（GitHub 可能延遲幾分鐘，正常）
+  workflow_dispatch: {} # 也可到 Actions 頁手動按一次
+
+concurrency:
+  group: check-alerts
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+        working-directory: tools/check-alerts
+      - run: node index.js
+        working-directory: tools/check-alerts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

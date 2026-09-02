@@ -1,0 +1,9 @@
+{
+  "name": "stocktw-check-alerts",
+  "private": true,
+  "type": "commonjs",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "firebase-admin": "^12.6.0"
+  }
+}
