@@ -22,11 +22,13 @@ import 'portfolio_page.dart';
 
 const _periods = {
   '分時': ('1d', '1m'),
+  '5分': ('5d', '5m'),
+  '15分': ('5d', '15m'),
+  '30分': ('1mo', '30m'),
+  '60分': ('3mo', '60m'),
   '日K': ('1y', '1d'),
   '週K': ('5y', '1wk'),
   '月K': ('max', '1mo'),
-  '5分': ('5d', '5m'),
-  '60分': ('1mo', '60m'),
 };
 
 KChartColors _kchartColors() => KChartColors(
@@ -206,7 +208,9 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
   @override
   Widget build(BuildContext context) {
     final q = ref.watch(quoteProvider(widget.symbol));
-    final inWatch = ref.watch(watchlistProvider).contains(widget.symbol);
+    ref.watch(watchlistProvider); // 群組任何變動都重繪星號
+    final inWatch =
+        ref.read(watchlistProvider.notifier).containsAnywhere(widget.symbol);
     final name = q?.name ?? widget.name;
 
     return Scaffold(

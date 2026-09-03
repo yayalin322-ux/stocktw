@@ -516,6 +516,7 @@ class QuoteRow extends StatelessWidget {
   final String name;
   final Quote? q;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final Widget? trailing;
   const QuoteRow({
     super.key,
@@ -523,6 +524,7 @@ class QuoteRow extends StatelessWidget {
     required this.name,
     required this.q,
     this.onTap,
+    this.onLongPress,
     this.trailing,
   });
 
@@ -532,6 +534,7 @@ class QuoteRow extends StatelessWidget {
         q?.change == null ? AppColors.surface2 : AppColors.forChange(q!.change!);
     return InkWell(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(

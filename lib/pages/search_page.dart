@@ -104,8 +104,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       );
                     }
                     final r = results[i];
-                    final inWatch =
-                        ref.watch(watchlistProvider).contains(r.symbol);
+                    ref.watch(watchlistProvider);
+                    final inWatch = ref
+                        .read(watchlistProvider.notifier)
+                        .containsAnywhere(r.symbol);
                     return ListTile(
                       title: Row(children: [
                         Flexible(

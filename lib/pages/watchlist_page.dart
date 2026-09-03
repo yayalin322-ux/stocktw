@@ -20,6 +20,7 @@ class WatchlistPage extends ConsumerWidget {
     final list = ref.watch(watchlistProvider);
     final quotes = ref.watch(quotesProvider);
     final sort = ref.watch(_sortProvider);
+    final wl = ref.read(watchlistProvider.notifier);
 
     final sorted = [...list];
     int cmpNum(num? a, num? b) => (b ?? -1e18).compareTo(a ?? -1e18);
@@ -41,12 +42,21 @@ class WatchlistPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('自選股'),
+        title: InkWell(
+          onTap: () => _groupSheet(context, ref),
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(wl.currentGroup),
+              const Icon(Icons.arrow_drop_down),
+            ]),
+          ),
+        ),
         actions: [
           PopupMenuButton<SortMode>(
             icon: const Icon(Icons.swap_vert),
-            onSelected: (m) =>
-                ref.read(_sortProvider.notifier).state = m,
+            onSelected: (m) => ref.read(_sortProvider.notifier).state = m,
             itemBuilder: (_) => const [
               PopupMenuItem(value: SortMode.custom, child: Text('自訂順序')),
               PopupMenuItem(value: SortMode.changePct, child: Text('依漲跌幅')),
@@ -62,15 +72,14 @@ class WatchlistPage extends ConsumerWidget {
         ],
       ),
       body: list.isEmpty
-          ? const _Empty()
+          ? _Empty(onAdd: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const SearchPage())))
           : RefreshIndicator(
-              onRefresh: () =>
-                  ref.read(quotesProvider.notifier).refresh(),
+              onRefresh: () => ref.read(quotesProvider.notifier).refresh(),
               child: sort == SortMode.custom
                   ? ReorderableListView.builder(
                       itemCount: sorted.length,
-                      onReorder: (o, n) =>
-                          ref.read(watchlistProvider.notifier).reorder(o, n),
+                      onReorder: (o, n) => wl.reorder(o, n),
                       itemBuilder: (c, i) => _row(context, ref, sorted[i],
                           quotes[sorted[i].id], key: ValueKey(sorted[i].id)),
                     )
@@ -104,18 +113,186 @@ class WatchlistPage extends ConsumerWidget {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => QuoteDetailPage(symbol: s, name: q?.name ?? s.code)),
+              builder: (_) =>
+                  QuoteDetailPage(symbol: s, name: q?.name ?? s.code)),
         ),
+        onLongPress: () => _rowSheet(context, ref, s, q?.name ?? s.code),
+      ),
+    );
+  }
+
+  // 群組選單
+  void _groupSheet(BuildContext context, WidgetRef ref) {
+    final wl = ref.read(watchlistProvider.notifier);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (_) => SafeArea(
+        child: StatefulBuilder(
+          builder: (c, setSheet) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('自選群組',
+                      style: TextStyle(
+                          color: AppColors.ink2,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ),
+              for (final g in wl.groupNames)
+                ListTile(
+                  leading: Icon(
+                    g == wl.currentGroup
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: g == wl.currentGroup
+                        ? AppColors.accent
+                        : AppColors.ink3,
+                    size: 20,
+                  ),
+                  title: Text(g),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text('${wl.countOf(g)}',
+                        style: const TextStyle(
+                            color: AppColors.ink3, fontSize: 12)),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, size: 18),
+                      onSelected: (v) async {
+                        if (v == 'rename') {
+                          final name = await _askName(context, '改名群組', g);
+                          if (name != null) {
+                            wl.renameGroup(g, name);
+                            setSheet(() {});
+                          }
+                        } else if (v == 'delete') {
+                          wl.removeGroup(g);
+                          setSheet(() {});
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                            value: 'rename', child: Text('改名')),
+                        if (wl.groupNames.length > 1)
+                          const PopupMenuItem(
+                              value: 'delete', child: Text('刪除群組')),
+                      ],
+                    ),
+                  ]),
+                  onTap: () {
+                    wl.switchGroup(g);
+                    Navigator.pop(c);
+                  },
+                ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.add, color: AppColors.accent),
+                title: const Text('新增群組'),
+                onTap: () async {
+                  final name = await _askName(context, '新增群組', '');
+                  if (name != null) {
+                    wl.addGroup(name);
+                    setSheet(() {});
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 個股長按：移動到其他群組 / 刪除
+  void _rowSheet(
+      BuildContext context, WidgetRef ref, Symbol s, String name) {
+    final wl = ref.read(watchlistProvider.notifier);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('$name  移動到…',
+                    style: const TextStyle(
+                        color: AppColors.ink2, fontWeight: FontWeight.w700)),
+              ),
+            ),
+            for (final g in wl.groupNames)
+              if (g != wl.currentGroup)
+                ListTile(
+                  leading: const Icon(Icons.folder_outlined, size: 20),
+                  title: Text(g),
+                  onTap: () {
+                    wl.moveToGroup(s, g);
+                    Navigator.pop(context);
+                  },
+                ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: AppColors.down),
+              title: const Text('從自選移除'),
+              onTap: () {
+                wl.remove(s);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _askName(
+      BuildContext context, String title, String initial) {
+    final c = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          maxLength: 10,
+          decoration: const InputDecoration(
+              hintText: '群組名稱', counterText: ''),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context), child: const Text('取消')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, c.text.trim()),
+              child: const Text('確定')),
+        ],
       ),
     );
   }
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty();
+  final VoidCallback onAdd;
+  const _Empty({required this.onAdd});
   @override
-  Widget build(BuildContext context) => const Center(
-        child: Text('尚無自選股，右上角 + 新增',
-            style: TextStyle(color: AppColors.ink3)),
+  Widget build(BuildContext context) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('這個群組還沒有股票',
+                style: TextStyle(color: AppColors.ink3)),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.search, size: 18),
+              label: const Text('搜尋新增'),
+            ),
+          ],
+        ),
       );
 }

@@ -20,43 +20,176 @@ final tabIndexProvider = StateProvider<int>((_) => 0);
 // ------------------------------------------------------------------
 // 自選股
 // ------------------------------------------------------------------
+/// 自選股支援多群組。`state` = 目前選中群組的清單（畫面顯示用）。
 class WatchlistNotifier extends StateNotifier<List<Symbol>> {
-  WatchlistNotifier(this._prefs) : super(_load(_prefs));
-  final SharedPreferences _prefs;
-  static const _key = 'watchlist';
-
-  static List<Symbol> _load(SharedPreferences p) {
-    final raw = p.getStringList(_key);
-    if (raw == null || raw.isEmpty) {
-      return const [
-        Symbol('2330', Market.tse),
-        Symbol('2317', Market.tse),
-        Symbol('2454', Market.tse),
-        Symbol('0050', Market.tse),
-        Symbol('2412', Market.tse),
-      ];
-    }
-    return raw.map(Symbol.parse).toList();
+  WatchlistNotifier(this._prefs) : super(const []) {
+    _loadAll();
   }
+  final SharedPreferences _prefs;
+  static const _keyV2 = 'watchlist.groups.v1';
+  static const _keyV1 = 'watchlist'; // 舊版單一清單
 
-  void _save() => _prefs.setStringList(_key, state.map((s) => s.id).toList());
+  final Map<String, List<Symbol>> _groups = {};
+  List<String> _order = [];
+  String _current = '自選';
 
-  void add(Symbol s) {
-    if (state.contains(s)) return;
-    state = [...state, s];
+  static const _seed = [
+    Symbol('2330', Market.tse),
+    Symbol('2317', Market.tse),
+    Symbol('2454', Market.tse),
+    Symbol('0050', Market.tse),
+    Symbol('2412', Market.tse),
+  ];
+
+  void _loadAll() {
+    final raw = _prefs.getString(_keyV2);
+    if (raw != null) {
+      try {
+        final m = jsonDecode(raw) as Map<String, dynamic>;
+        _order = (m['order'] as List).cast<String>();
+        final g = m['groups'] as Map<String, dynamic>;
+        for (final name in _order) {
+          _groups[name] = ((g[name] as List?) ?? const [])
+              .map((e) => Symbol.parse(e as String))
+              .toList();
+        }
+        _current = m['current'] as String? ?? '';
+      } catch (_) {
+        _groups.clear();
+        _order = [];
+      }
+    } else {
+      final old = _prefs.getStringList(_keyV1);
+      if (old != null && old.isNotEmpty) {
+        _groups['自選'] = old.map(Symbol.parse).toList();
+        _order = ['自選'];
+      }
+    }
+    if (_groups.isEmpty) {
+      _groups['自選'] = [..._seed];
+      _order = ['自選'];
+    }
+    if (!_groups.containsKey(_current)) _current = _order.first;
+    state = [..._groups[_current]!];
     _save();
   }
 
+  void _save() {
+    _prefs.setString(
+      _keyV2,
+      jsonEncode({
+        'order': _order,
+        'current': _current,
+        'groups': {
+          for (final e in _groups.entries)
+            e.key: e.value.map((s) => s.id).toList(),
+        },
+      }),
+    );
+  }
+
+  // ---------- 群組 ----------
+  List<String> get groupNames => List.unmodifiable(_order);
+  String get currentGroup => _current;
+  int countOf(String name) => _groups[name]?.length ?? 0;
+
+  /// 全部群組的標的聯集（輪詢報價、判斷是否已加入用）
+  List<Symbol> get allSymbols =>
+      <Symbol>{for (final l in _groups.values) ...l}.toList();
+
+  bool containsAnywhere(Symbol s) =>
+      _groups.values.any((l) => l.contains(s));
+
+  String? groupOf(Symbol s) {
+    for (final e in _groups.entries) {
+      if (e.value.contains(s)) return e.key;
+    }
+    return null;
+  }
+
+  void switchGroup(String name) {
+    if (!_groups.containsKey(name) || name == _current) return;
+    _current = name;
+    state = [..._groups[name]!];
+    _save();
+  }
+
+  void addGroup(String name) {
+    final n = name.trim();
+    if (n.isEmpty || _groups.containsKey(n)) return;
+    _groups[n] = [];
+    _order = [..._order, n];
+    _current = n;
+    state = const [];
+    _save();
+  }
+
+  void renameGroup(String from, String to) {
+    final t = to.trim();
+    if (t.isEmpty ||
+        from == t ||
+        !_groups.containsKey(from) ||
+        _groups.containsKey(t)) {
+      return;
+    }
+    _groups[t] = _groups.remove(from)!;
+    _order = [for (final o in _order) o == from ? t : o];
+    if (_current == from) {
+      _current = t;
+    }
+    state = [..._groups[_current]!];
+    _save();
+  }
+
+  void removeGroup(String name) {
+    if (_groups.length <= 1 || !_groups.containsKey(name)) return;
+    _groups.remove(name);
+    _order = _order.where((o) => o != name).toList();
+    if (_current == name) _current = _order.first;
+    state = [..._groups[_current]!];
+    _save();
+  }
+
+  // ---------- 個股（作用在目前群組）----------
+  void add(Symbol s) {
+    final cur = _groups[_current]!;
+    if (cur.contains(s)) return;
+    _groups[_current] = [...cur, s];
+    state = [..._groups[_current]!];
+    _save();
+  }
+
+  /// 從所有群組移除（星號切換直覺）
   void remove(Symbol s) {
-    state = state.where((e) => e != s).toList();
+    var changed = false;
+    for (final k in _groups.keys.toList()) {
+      if (_groups[k]!.contains(s)) {
+        _groups[k] = _groups[k]!.where((e) => e != s).toList();
+        changed = true;
+      }
+    }
+    if (changed) {
+      state = [..._groups[_current]!];
+      _save();
+    }
+  }
+
+  void moveToGroup(Symbol s, String target) {
+    if (!_groups.containsKey(target)) return;
+    for (final k in _groups.keys.toList()) {
+      _groups[k] = _groups[k]!.where((e) => e != s).toList();
+    }
+    _groups[target] = [..._groups[target]!, s];
+    state = [..._groups[_current]!];
     _save();
   }
 
   void reorder(int oldIndex, int newIndex) {
-    final list = [...state];
+    final list = [..._groups[_current]!];
     if (newIndex > oldIndex) newIndex -= 1;
     list.insert(newIndex, list.removeAt(oldIndex));
-    state = list;
+    _groups[_current] = list;
+    state = [...list];
     _save();
   }
 }
@@ -176,7 +309,7 @@ class QuotesNotifier extends StateNotifier<Map<String, Quote>> {
   }
 
   Set<Symbol> get _symbols {
-    final s = <Symbol>{...ref.read(watchlistProvider)};
+    final s = <Symbol>{...ref.read(watchlistProvider.notifier).allSymbols};
     for (final p in ref.read(portfolioProvider)) {
       s.add(Symbol(p.code, p.market));
     }
