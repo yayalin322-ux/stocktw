@@ -108,6 +108,7 @@ class IntradayChart extends StatelessWidget {
   final List<int> times; // epoch 秒；提供時用時間定位 x 軸
   final int? regStart; // 正常盤 epoch 秒
   final int? regEnd;
+  final Map<String, double> cdp; // CDP 壓力/支撐點位（標籤 -> 價）
   const IntradayChart(
     this.prices,
     this.volumes,
@@ -116,6 +117,7 @@ class IntradayChart extends StatelessWidget {
     this.times = const [],
     this.regStart,
     this.regEnd,
+    this.cdp = const {},
   });
 
   @override
@@ -125,8 +127,9 @@ class IntradayChart extends StatelessWidget {
           child: Text('無分時資料（非交易時段）',
               style: TextStyle(color: AppColors.ink3)));
     }
-    final lo = [prevClose, ...prices].reduce((a, b) => a < b ? a : b);
-    final hi = [prevClose, ...prices].reduce((a, b) => a > b ? a : b);
+    final span = [prevClose, ...prices, ...cdp.values];
+    final lo = span.reduce((a, b) => a < b ? a : b);
+    final hi = span.reduce((a, b) => a > b ? a : b);
     final up = prices.last >= prevClose;
     final col = up ? AppColors.up : AppColors.down;
 
@@ -169,10 +172,32 @@ class IntradayChart extends StatelessWidget {
         Expanded(
           child: CustomPaint(
             painter: _IntradayPainter(
-                prices, prevClose, lo, hi, col, preFrac, postFrac),
+                prices, prevClose, lo, hi, col, preFrac, postFrac, cdp),
             size: Size.infinite,
           ),
         ),
+        if (cdp.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 3, 12, 0),
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 2,
+              children: [
+                for (final e in cdp.entries)
+                  Text(
+                    '${e.key} ${e.value.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      color: e.key.startsWith('壓')
+                          ? AppColors.up
+                          : e.key.startsWith('支')
+                              ? AppColors.down
+                              : AppColors.ink3,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         SizedBox(
           height: 44,
           child: CustomPaint(
@@ -218,14 +243,34 @@ class _IntradayPainter extends CustomPainter {
   final double prev, lo, hi;
   final Color col;
   final double preFrac, postFrac;
-  _IntradayPainter(
-      this.p, this.prev, this.lo, this.hi, this.col, this.preFrac, this.postFrac);
+  final Map<String, double> cdp;
+  _IntradayPainter(this.p, this.prev, this.lo, this.hi, this.col, this.preFrac,
+      this.postFrac, this.cdp);
   @override
   void paint(Canvas c, Size s) {
     final range = (hi - lo).abs() < 1e-9 ? 1.0 : hi - lo;
     final n = p.length - 1;
     double x(int i) => n == 0 ? 0 : i / n * s.width;
     double y(double v) => s.height - (v - lo) / range * s.height;
+
+    // CDP 壓力/支撐水平線
+    for (final e in cdp.entries) {
+      final yy = y(e.value);
+      if (yy.isNaN || yy < 0 || yy > s.height) continue;
+      final isRef = !e.key.startsWith('壓') && !e.key.startsWith('支');
+      final lc = (e.key.startsWith('壓')
+              ? AppColors.up
+              : e.key.startsWith('支')
+                  ? AppColors.down
+                  : AppColors.ink3)
+          .withValues(alpha: isRef ? 0.5 : 0.35);
+      final lp = Paint()
+        ..color = lc
+        ..strokeWidth = 1;
+      for (double dx = 0; dx < s.width; dx += 7) {
+        c.drawLine(Offset(dx, yy), Offset(dx + 3.5, yy), lp);
+      }
+    }
 
     // 盤前/盤後底色
     final wash = Paint()..color = AppColors.ink3.withValues(alpha: 0.08);
@@ -279,7 +324,10 @@ class _IntradayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_IntradayPainter o) =>
-      o.p != p || o.preFrac != preFrac || o.postFrac != postFrac;
+      o.p != p ||
+      o.preFrac != preFrac ||
+      o.postFrac != postFrac ||
+      o.cdp != cdp;
 }
 
 class _VolPainter extends CustomPainter {

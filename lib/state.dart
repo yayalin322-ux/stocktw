@@ -283,3 +283,40 @@ final recentProvider =
     StateNotifierProvider<RecentNotifier, List<(Symbol, String)>>((ref) {
   return RecentNotifier(ref.watch(prefsProvider));
 });
+
+// ------------------------------------------------------------------
+// 個股備忘錄（每檔一段筆記，只存本機）
+// ------------------------------------------------------------------
+class NotesNotifier extends StateNotifier<Map<String, String>> {
+  NotesNotifier(this._prefs) : super(_load(_prefs));
+  final SharedPreferences _prefs;
+  static const _key = 'notes.v1';
+
+  static Map<String, String> _load(SharedPreferences p) {
+    final raw = p.getString(_key);
+    if (raw == null) return {};
+    return Map<String, String>.from(jsonDecode(raw) as Map);
+  }
+
+  void set(String id, String text) {
+    final t = text.trim();
+    final next = {...state};
+    if (t.isEmpty) {
+      next.remove(id);
+    } else {
+      next[id] = t;
+    }
+    state = next;
+    _prefs.setString(_key, jsonEncode(state));
+  }
+}
+
+final notesProvider =
+    StateNotifierProvider<NotesNotifier, Map<String, String>>((ref) {
+  return NotesNotifier(ref.watch(prefsProvider));
+});
+
+/// 單一標的備忘錄文字（空字串表示尚未填）
+final noteProvider = Provider.family<String, String>((ref, id) {
+  return ref.watch(notesProvider)[id] ?? '';
+});

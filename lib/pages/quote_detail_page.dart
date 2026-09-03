@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:k_chart_plus/k_chart_plus.dart';
@@ -27,6 +28,22 @@ const _periods = {
   '5分': ('5d', '5m'),
   '60分': ('1mo', '60m'),
 };
+
+KChartColors _kchartColors() => KChartColors(
+      bgColor: AppColors.bg,
+      upColor: AppColors.up,
+      dnColor: AppColors.down,
+      volUpColor: AppColors.up,
+      volDnColor: AppColors.down,
+      nowPriceUpColor: AppColors.up,
+      nowPriceDnColor: AppColors.down,
+      gridColor: AppColors.border,
+      defaultTextColor: AppColors.ink2,
+      maxColor: AppColors.ink2,
+      minColor: AppColors.ink2,
+      crossColor: AppColors.ink,
+      crossTextColor: AppColors.ink,
+    );
 
 String _yi(double? thousand) =>
     thousand == null ? '--' : '${(thousand / 1e5).toStringAsFixed(1)} 億';
@@ -66,6 +83,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
   String _period = '日K';
   List<KLineEntity>? _entities;
   Intraday? _intraday;
+  Map<String, double>? _cdp; // 分時圖 CDP 壓力/支撐
   bool _loadingChart = true;
   String? _chartErr;
   Profile? _profile;
@@ -76,9 +94,10 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
   // 一般台股：五檔/財報/股利/籌碼/新聞
   // ETF：五檔/(成分股)/股利/籌碼/新聞（無財報）
   // 美股：新聞
-  int get _tabCount => _isTW
-      ? (_isEtf ? (_hasHoldings ? 5 : 4) : 5)
-      : 1;
+  int get _tabCount => (_isTW
+          ? (_isEtf ? (_hasHoldings ? 5 : 4) : 5)
+          : 1) +
+      1; // + 備忘錄
   late final TabController _tab = TabController(length: _tabCount, vsync: this);
 
   @override
@@ -113,6 +132,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
           _intraday = id;
           _loadingChart = false;
         });
+        _loadCdp();
         return;
       }
       final candles = await candleService.fetch(widget.symbol,
@@ -139,6 +159,48 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
         _loadingChart = false;
       });
     }
+  }
+
+  /// 用昨日 高/低/收 算 CDP 逆勢操作點位，畫在分時圖上
+  Future<void> _loadCdp() async {
+    try {
+      final daily = await candleService.fetch(widget.symbol,
+          range: '1mo', interval: '1d');
+      int key(DateTime d) {
+        final t = d.toUtc().add(const Duration(hours: 8)); // 台北
+        return t.year * 10000 + t.month * 100 + t.day;
+      }
+
+      final todayKey = key(DateTime.now());
+      final prev = daily.where((c) => key(c.time) < todayKey).toList();
+      if (prev.isEmpty) return;
+      final d = prev.last;
+      final h = d.high, l = d.low, cl = d.close;
+      final cdp = (h + l + 2 * cl) / 4;
+      final map = {
+        '壓力²': cdp + (h - l),
+        '壓力¹': 2 * cdp - l,
+        '參考': cdp,
+        '支撐¹': 2 * cdp - h,
+        '支撐²': cdp - (h - l),
+      };
+      if (mounted && _period == '分時') setState(() => _cdp = map);
+    } catch (_) {
+      // 靜默
+    }
+  }
+
+  void _openFullscreen() {
+    final es = _entities;
+    if (es == null || es.isEmpty) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _KChartFullscreen(
+        entities: es,
+        main: _mainSel.map((i) => _mainInd[i]).toList(),
+        secondary: _secSel.map((i) => _secInd[i]).toList(),
+        title: '${widget.name} ${widget.symbol.code} · $_period',
+      ),
+    ));
   }
 
   @override
@@ -176,8 +238,36 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
         children: [
           _header(q),
           _periodBar(),
-          SizedBox(height: 360, child: _chart()),
-          if (_period != '分時') _indicatorBar(),
+          Stack(
+            children: [
+              SizedBox(height: 360, child: _chart()),
+              if (_period != '分時' &&
+                  _entities != null &&
+                  _entities!.isNotEmpty)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Material(
+                    color: AppColors.surface2.withValues(alpha: 0.8),
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      icon: const Icon(Icons.fullscreen, size: 20),
+                      color: AppColors.ink2,
+                      tooltip: '全螢幕橫向',
+                      onPressed: _openFullscreen,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (_period != '分時') ...[
+            _indicatorBar(),
+            const Padding(
+              padding: EdgeInsets.only(left: 16, top: 2),
+              child: Text('雙指縮放 K 線 · 長按看每根詳細 · 右上可全螢幕',
+                  style: TextStyle(fontSize: 10, color: AppColors.ink3)),
+            ),
+          ],
           const SizedBox(height: 8),
           TabBar(
             controller: _tab,
@@ -193,6 +283,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
               if (_isTW) const Tab(text: '股利/配息'),
               if (_isTW) const Tab(text: '籌碼'),
               const Tab(text: '新聞'),
+              const Tab(text: '備忘錄'),
             ],
           ),
           SizedBox(
@@ -210,6 +301,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
                 if (_isTW) _ChipTab(code: widget.symbol.code),
                 _NewsTab(
                     code: widget.symbol.code, name: name, tw: _isTW),
+                _NotesTab(id: widget.symbol.id),
               ],
             ),
           ),
@@ -357,6 +449,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
         times: c.map((e) => e.time.millisecondsSinceEpoch ~/ 1000).toList(),
         regStart: id?.regStart,
         regEnd: id?.regEnd,
+        cdp: _cdp ?? const {},
       );
     }
     if (_chartErr != null || _entities == null || _entities!.isEmpty) {
@@ -369,21 +462,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
     return KChartWidget(
       _entities,
       const KChartStyle(),
-      KChartColors(
-        bgColor: AppColors.bg,
-        upColor: AppColors.up,
-        dnColor: AppColors.down,
-        volUpColor: AppColors.up,
-        volDnColor: AppColors.down,
-        nowPriceUpColor: AppColors.up,
-        nowPriceDnColor: AppColors.down,
-        gridColor: AppColors.border,
-        defaultTextColor: AppColors.ink2,
-        maxColor: AppColors.ink2,
-        minColor: AppColors.ink2,
-        crossColor: AppColors.ink,
-        crossTextColor: AppColors.ink,
-      ),
+      _kchartColors(),
       isTrendLine: false,
       mainIndicators: _mainSel.map((i) => _mainInd[i]).toList(),
       secondaryIndicators: _secSel.map((i) => _secInd[i]).toList(),
@@ -1010,3 +1089,159 @@ Widget _row(String k, String v, {Color? c, String? term}) => Padding(
         ],
       ),
     );
+
+// ------------------------------------------------------------------
+// K 線全螢幕（橫向）
+// ------------------------------------------------------------------
+class _KChartFullscreen extends StatefulWidget {
+  final List<KLineEntity> entities;
+  final List<MainIndicator> main;
+  final List<SecondaryIndicator> secondary;
+  final String title;
+  const _KChartFullscreen({
+    required this.entities,
+    required this.main,
+    required this.secondary,
+    required this.title,
+  });
+  @override
+  State<_KChartFullscreen> createState() => _KChartFullscreenState();
+}
+
+class _KChartFullscreenState extends State<_KChartFullscreen> {
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close, color: AppColors.ink2),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                Expanded(
+                  child: Text(widget.title,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: AppColors.ink, fontWeight: FontWeight.w600)),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(right: 14),
+                  child: Text('雙指縮放 · 長按看詳細',
+                      style: TextStyle(fontSize: 11, color: AppColors.ink3)),
+                ),
+              ],
+            ),
+            Expanded(
+              child: KChartWidget(
+                widget.entities,
+                const KChartStyle(),
+                _kchartColors(),
+                isTrendLine: false,
+                mainIndicators: widget.main,
+                secondaryIndicators: widget.secondary,
+                fixedLength: 2,
+                timeFormat: TimeFormat.YEAR_MONTH_DAY,
+                detailBuilder: (e) => Container(
+                  padding: const EdgeInsets.all(8),
+                  color: AppColors.surface2,
+                  child: Text(
+                    '開 ${e.open.toStringAsFixed(2)}  高 ${e.high.toStringAsFixed(2)}\n'
+                    '低 ${e.low.toStringAsFixed(2)}  收 ${e.close.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 11, color: AppColors.ink),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------------
+// 個股備忘錄分頁
+// ------------------------------------------------------------------
+class _NotesTab extends ConsumerStatefulWidget {
+  final String id;
+  const _NotesTab({required this.id});
+  @override
+  ConsumerState<_NotesTab> createState() => _NotesTabState();
+}
+
+class _NotesTabState extends ConsumerState<_NotesTab> {
+  late final TextEditingController _c =
+      TextEditingController(text: ref.read(noteProvider(widget.id)));
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Text('個人備忘錄',
+                  style: TextStyle(
+                      color: AppColors.ink2, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _c,
+                builder: (_, v, child) => Text('${v.text.length}/200',
+                    style:
+                        const TextStyle(fontSize: 11, color: AppColors.ink3)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: TextField(
+              controller: _c,
+              maxLength: 200,
+              maxLines: null,
+              expands: true,
+              textAlignVertical: TextAlignVertical.top,
+              onChanged: (t) =>
+                  ref.read(notesProvider.notifier).set(widget.id, t),
+              style: const TextStyle(color: AppColors.ink, fontSize: 14),
+              decoration: const InputDecoration(
+                hintText: '記錄買賣理由、目標價、觀察重點…\n只存在這支手機，不會上傳。',
+                hintStyle: TextStyle(color: AppColors.ink3, fontSize: 13),
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
