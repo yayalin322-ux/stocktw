@@ -16,7 +16,9 @@ DateTime? _parseRoc(String s) {
 DateTime _dayKey(DateTime d) => DateTime(d.year, d.month, d.day);
 
 class ExCalendarPage extends StatefulWidget {
-  const ExCalendarPage({super.key});
+  final String? filterCode; // 指定時只顯示該檔股票（個股行事曆）
+  final String? filterName;
+  const ExCalendarPage({super.key, this.filterCode, this.filterName});
   @override
   State<ExCalendarPage> createState() => _ExCalendarPageState();
 }
@@ -36,7 +38,10 @@ class _ExCalendarPageState extends State<ExCalendarPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     await universeService.ensureLoaded();
-    final rows = await marketService.exCalendar();
+    var rows = await marketService.exCalendar();
+    if (widget.filterCode != null) {
+      rows = rows.where((r) => r.code == widget.filterCode).toList();
+    }
     _byDay.clear();
     for (final r in rows) {
       final d = _parseRoc(r.date);
@@ -81,7 +86,10 @@ class _ExCalendarPageState extends State<ExCalendarPage> {
   Widget build(BuildContext context) {
     final events = _byDay[_selected] ?? const [];
     return Scaffold(
-      appBar: AppBar(title: const Text('除權息行事曆')),
+      appBar: AppBar(
+          title: Text(widget.filterName != null
+              ? '${widget.filterName} 行事曆'
+              : '除權息行事曆')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

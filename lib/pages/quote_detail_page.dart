@@ -18,6 +18,7 @@ import '../etf_holdings.dart';
 import '../glossary.dart';
 import 'alerts_page.dart';
 import 'compare_page.dart';
+import 'ex_calendar_page.dart';
 import 'glossary_page.dart';
 import 'portfolio_page.dart';
 
@@ -336,7 +337,8 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
               child: FilledButton.icon(
                 icon: const Icon(Icons.add_chart, size: 18),
                 label: const Text('記錄持倉'),
-                onPressed: () => showAddPosition(context, ref, widget.symbol, name),
+                onPressed: () => showAddPosition(context, ref, widget.symbol, name,
+                    price: q?.price),
               ),
             ),
           ]),
@@ -1312,6 +1314,19 @@ class _RelatedTab extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder: (_) => ComparePage(base: symbol, baseName: name),
+            ),
+          ),
+        ),
+        const SizedBox(height: 22),
+        const _H('個股行事曆'),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.event_outlined, size: 18),
+          label: const Text('本檔的除權息行事曆'),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ExCalendarPage(
+                  filterCode: symbol.code, filterName: name),
             ),
           ),
         ),

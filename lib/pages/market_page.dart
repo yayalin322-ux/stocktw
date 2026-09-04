@@ -8,6 +8,7 @@ import '../services/market_service.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'ex_calendar_page.dart';
+import 'heatmap_page.dart';
 import 'index_detail_page.dart';
 import 'quote_detail_page.dart';
 import 'screener_page.dart';
@@ -97,6 +98,12 @@ class _MarketPageState extends ConsumerState<MarketPage> {
           SessionPill(),
         ]),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.grid_view_rounded),
+            tooltip: '熱力圖',
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const HeatmapPage())),
+          ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             tooltip: '選股排行',

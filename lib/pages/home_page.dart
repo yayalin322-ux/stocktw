@@ -11,6 +11,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'ex_calendar_page.dart';
 import 'glossary_page.dart';
+import 'heatmap_page.dart';
 import 'index_detail_page.dart';
 import 'quote_detail_page.dart';
 import 'screener_page.dart';
@@ -212,6 +213,8 @@ class _HomePageState extends ConsumerState<HomePage> {
               MaterialPageRoute(builder: (_) => const ExCalendarPage()))),
           item(Icons.menu_book_outlined, '名詞', () => Navigator.push(context,
               MaterialPageRoute(builder: (_) => const GlossaryPage()))),
+          item(Icons.grid_view_rounded, '熱力圖', () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const HeatmapPage()))),
         ]),
       ),
     );

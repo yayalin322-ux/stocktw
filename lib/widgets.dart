@@ -127,20 +127,58 @@ class IntradayChart extends StatelessWidget {
           child: Text('無分時資料（非交易時段）',
               style: TextStyle(color: AppColors.ink3)));
     }
+    final useTimeAll = times.length == prices.length && times.length > 1;
+
+    // 主圖只畫「正常盤」時段的點；盤前不顯示，盤後另外用下面的專區呈現，
+    // 不混在同一張圖裡（之前盤前盤後會擠在主圖兩側，容易看錯）。
+    var regPrices = prices;
+    var regVolumes = volumes;
+    var regTimes = times;
+    var postPrices = const <double>[];
+    var postTimes = const <int>[];
+    if (useTimeAll && regStart != null && regEnd != null) {
+      final rp = <double>[], rv = <double>[], rt = <int>[];
+      final pp = <double>[], pt = <int>[];
+      for (var i = 0; i < prices.length; i++) {
+        final t = times[i];
+        if (t >= regStart! && t <= regEnd!) {
+          rp.add(prices[i]);
+          rv.add(volumes[i]);
+          rt.add(t);
+        } else if (t > regEnd!) {
+          pp.add(prices[i]);
+          pt.add(t);
+        }
+      }
+      if (rp.length >= 2) {
+        regPrices = rp;
+        regVolumes = rv;
+        regTimes = rt;
+      }
+      postPrices = pp;
+      postTimes = pt;
+    }
+
+    if (regPrices.length < 2) {
+      return const Center(
+          child: Text('無分時資料（非交易時段）',
+              style: TextStyle(color: AppColors.ink3)));
+    }
+
     // 昨收固定畫在正中間：以昨收為中心，取「離昨收最遠的偏移量」對稱
     // 抓上下界，這樣虛線永遠在圖表正中央，不會因為股價漲多跌多而偏移。
-    final span = [...prices, ...cdp.values];
+    final span = [...regPrices, ...cdp.values];
     final maxDev = span
         .map((v) => (v - prevClose).abs())
         .fold<double>(1e-6, (a, b) => a > b ? a : b);
     final lo = prevClose - maxDev;
     final hi = prevClose + maxDev;
-    final up = prices.last >= prevClose;
+    final up = regPrices.last >= prevClose;
     final col = up ? AppColors.up : AppColors.down;
 
-    final useTime = times.length == prices.length && times.length > 1;
-    final dataMin = useTime ? times.first : 0;
-    final dataMax = useTime ? times.last : prices.length - 1;
+    final useTime = regTimes.length == regPrices.length && regTimes.length > 1;
+    final dataMin = useTime ? regTimes.first : 0;
+    final dataMax = useTime ? regTimes.last : regPrices.length - 1;
     // 軸固定成整個交易時段（開盤~收盤），不會隨資料愈收愈多而一直重新
     // 縮放 —— 這樣線只會畫到「現在」，右邊留白隨時間慢慢被填滿。
     final t0 = useTime && regStart != null && regStart! < dataMin
@@ -149,13 +187,6 @@ class IntradayChart extends StatelessWidget {
     final tN = useTime && regEnd != null && regEnd! > dataMax
         ? regEnd!
         : dataMax;
-    double frac(int t) => (tN - t0) == 0 ? 0 : (t - t0) / (tN - t0);
-    final preFrac = (useTime && regStart != null && regStart! > t0)
-        ? frac(regStart!).clamp(0.0, 1.0)
-        : 0.0;
-    final postFrac = (useTime && regEnd != null && regEnd! < tN)
-        ? frac(regEnd!).clamp(0.0, 1.0)
-        : 1.0;
 
     return Column(
       children: [
@@ -173,19 +204,10 @@ class IntradayChart extends StatelessWidget {
             ],
           ),
         ),
-        if (preFrac > 0 || postFrac < 1)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
-            child: Row(children: [
-              if (preFrac > 0) _tagPP('盤前'),
-              const Spacer(),
-              if (postFrac < 1) _tagPP('盤後'),
-            ]),
-          ),
         Expanded(
           child: CustomPaint(
-            painter: _IntradayPainter(prices, useTime ? times : const [], t0,
-                tN, prevClose, lo, hi, col, preFrac, postFrac, cdp),
+            painter: _IntradayPainter(regPrices, useTime ? regTimes : const [],
+                t0, tN, prevClose, lo, hi, col, 0.0, 1.0, cdp),
             size: Size.infinite,
           ),
         ),
@@ -214,8 +236,8 @@ class IntradayChart extends StatelessWidget {
         SizedBox(
           height: 44,
           child: CustomPaint(
-            painter: _VolPainter(
-                volumes, prices, prevClose, useTime ? times : const [], t0, tN),
+            painter: _VolPainter(regVolumes, regPrices, prevClose,
+                useTime ? regTimes : const [], t0, tN),
             size: Size.infinite,
           ),
         ),
@@ -233,22 +255,85 @@ class IntradayChart extends StatelessWidget {
             ],
           ),
         ),
+        if (postPrices.length > 1)
+          _PostMarketSection(postPrices, postTimes, regPrices.last),
       ],
     );
   }
 
-  static Widget _tagPP(String t) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-        decoration: BoxDecoration(
-            color: AppColors.ink3.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(4)),
-        child: Text(t,
-            style: const TextStyle(fontSize: 9, color: AppColors.ink3)),
-      );
-
   static String _hm(int sec) {
     final d = DateTime.fromMillisecondsSinceEpoch(sec * 1000).toLocal();
     return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// 盤後專區：跟主圖分開，避免擠在同一張圖裡看不清楚
+class _PostMarketSection extends StatelessWidget {
+  final List<double> prices;
+  final List<int> times;
+  final double regClose; // 正常盤收盤價（漲跌基準）
+  const _PostMarketSection(this.prices, this.times, this.regClose);
+
+  @override
+  Widget build(BuildContext context) {
+    final last = prices.last;
+    final hiP = prices.reduce((a, b) => a > b ? a : b);
+    final loP = prices.reduce((a, b) => a < b ? a : b);
+    final chg = last - regClose;
+    final chgPct = regClose == 0 ? 0.0 : chg / regClose * 100;
+    final c = AppColors.forChange(chg);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                  color: AppColors.warn.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(4)),
+              child: const Text('盤後專區',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.warn,
+                      fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(width: 8),
+            Text(last.toStringAsFixed(2),
+                style: kNum.copyWith(fontSize: 16, color: c)),
+            const SizedBox(width: 8),
+            Text(
+                '${chg >= 0 ? '+' : ''}${chg.toStringAsFixed(2)}'
+                '（${chgPct >= 0 ? '+' : ''}${chgPct.toStringAsFixed(2)}%）',
+                style: TextStyle(fontSize: 12, color: c)),
+            const Spacer(),
+            Text(IntradayChart._hm(times.last),
+                style: const TextStyle(fontSize: 10, color: AppColors.ink3)),
+          ]),
+          const SizedBox(height: 8),
+          SizedBox(
+              height: 34, child: Sparkline(prices, baseline: regClose)),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('盤後高 ${hiP.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 10, color: AppColors.ink3)),
+              Text('盤後低 ${loP.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 10, color: AppColors.ink3)),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

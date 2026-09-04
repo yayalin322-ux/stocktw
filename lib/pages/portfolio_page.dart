@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models.dart';
 import '../services/financials_service.dart';
+import '../services/quote_service.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -30,9 +31,11 @@ class PortfolioPage extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final r = await pickSymbol(context);
-          if (r != null && context.mounted) {
-            showAddPosition(context, ref, r.$1, r.$2);
-          }
+          if (r == null || !context.mounted) return;
+          // 先抓一次目前市價，讓滑桿一開就以現價為正中點
+          final q = await quoteService.one(r.$1);
+          if (!context.mounted) return;
+          showAddPosition(context, ref, r.$1, r.$2, price: q?.price);
         },
         child: const Icon(Icons.add),
       ),
@@ -104,7 +107,7 @@ class PortfolioPage extends ConsumerWidget {
       child: ListTile(
         onTap: () => showAddPosition(context, ref,
             Symbol(p.code, p.market), p.name,
-            existing: p),
+            existing: p, price: px),
         title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text(
           '${p.code} · ${p.shares} 股 · 成本 ${p.cost.toStringAsFixed(2)}'
@@ -139,9 +142,11 @@ Future<void> showAddPosition(
       text: '${existing?.shares ?? (s.market == Market.us ? 1 : 1000)}');
   final start = existing?.cost ?? price ?? 100;
   final costC = TextEditingController(text: start.toStringAsFixed(2));
-  // 滑桿範圍：目前價 ±50%，最少 0
-  final lo = (start * 0.5).clamp(0.0, double.infinity);
-  final hi = start * 1.5 + 1;
+  // 滑桿永遠以「現在市價」為正中點（不是用你之前記的成本），這樣不管
+  // 從哪個畫面點進來、成本是不是很久以前的價位，滑桿都對得上現況。
+  final center = price ?? start;
+  final lo = (center * 0.5).clamp(0.0, double.infinity);
+  final hi = center * 1.5 + 1;
 
   return showModalBottomSheet(
     context: context,

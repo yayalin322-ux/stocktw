@@ -474,6 +474,34 @@ class MarketService {
     }
     return rows.take(40).toList();
   }
+
+  /// 熱力圖用：成交值前 N 大個股的漲跌幅（同時要金額做格子大小、%做顏色）
+  Future<List<HeatCell>> heatmap({int take = 60}) async {
+    await _ensureRank();
+    final list = (_dayAll ?? []).cast<Map>();
+    final rows = <HeatCell>[];
+    for (final e in list) {
+      final close = _num(e['ClosingPrice']);
+      final chg = _num(e['Change']);
+      final val = _num(e['TradeValue']);
+      final code = e['Code']?.toString() ?? '';
+      final name = e['Name']?.toString() ?? '';
+      if (close == null || close <= 0 || code.length != 4) continue;
+      final prev = chg == null ? close : close - chg;
+      final pct = prev == 0 ? 0.0 : (chg ?? 0) / prev * 100;
+      rows.add(HeatCell(code, name, pct, (val ?? 0) / 1e8));
+    }
+    rows.sort((a, b) => b.turnoverYi.compareTo(a.turnoverYi));
+    return rows.take(take).toList();
+  }
+}
+
+class HeatCell {
+  final String code;
+  final String name;
+  final double changePct;
+  final double turnoverYi; // 成交值（億）
+  HeatCell(this.code, this.name, this.changePct, this.turnoverYi);
 }
 
 final marketService = MarketService();
