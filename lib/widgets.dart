@@ -134,8 +134,16 @@ class IntradayChart extends StatelessWidget {
     final col = up ? AppColors.up : AppColors.down;
 
     final useTime = times.length == prices.length && times.length > 1;
-    final t0 = useTime ? times.first : 0;
-    final tN = useTime ? times.last : prices.length - 1;
+    final dataMin = useTime ? times.first : 0;
+    final dataMax = useTime ? times.last : prices.length - 1;
+    // 軸固定成整個交易時段（開盤~收盤），不會隨資料愈收愈多而一直重新
+    // 縮放 —— 這樣線只會畫到「現在」，右邊留白隨時間慢慢被填滿。
+    final t0 = useTime && regStart != null && regStart! < dataMin
+        ? regStart!
+        : dataMin;
+    final tN = useTime && regEnd != null && regEnd! > dataMax
+        ? regEnd!
+        : dataMax;
     double frac(int t) => (tN - t0) == 0 ? 0 : (t - t0) / (tN - t0);
     final preFrac = (useTime && regStart != null && regStart! > t0)
         ? frac(regStart!).clamp(0.0, 1.0)
@@ -171,8 +179,8 @@ class IntradayChart extends StatelessWidget {
           ),
         Expanded(
           child: CustomPaint(
-            painter: _IntradayPainter(
-                prices, prevClose, lo, hi, col, preFrac, postFrac, cdp),
+            painter: _IntradayPainter(prices, useTime ? times : const [], t0,
+                tN, prevClose, lo, hi, col, preFrac, postFrac, cdp),
             size: Size.infinite,
           ),
         ),
@@ -201,7 +209,8 @@ class IntradayChart extends StatelessWidget {
         SizedBox(
           height: 44,
           child: CustomPaint(
-            painter: _VolPainter(volumes, prices, prevClose),
+            painter: _VolPainter(
+                volumes, prices, prevClose, useTime ? times : const [], t0, tN),
             size: Size.infinite,
           ),
         ),
@@ -210,10 +219,10 @@ class IntradayChart extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(useTime ? _hm(times.first) : '',
+              Text(useTime ? _hm(t0) : '',
                   style:
                       const TextStyle(fontSize: 10, color: AppColors.ink3)),
-              Text(useTime ? _hm(times.last) : '',
+              Text(useTime ? _hm(tN) : '',
                   style:
                       const TextStyle(fontSize: 10, color: AppColors.ink3)),
             ],
@@ -240,17 +249,22 @@ class IntradayChart extends StatelessWidget {
 
 class _IntradayPainter extends CustomPainter {
   final List<double> p;
+  final List<int> times; // 與 p 等長時，依「現在時間 / 全時段」定位 x；否則退回等分
+  final int t0, tN; // 固定時段（開盤~收盤）
   final double prev, lo, hi;
   final Color col;
   final double preFrac, postFrac;
   final Map<String, double> cdp;
-  _IntradayPainter(this.p, this.prev, this.lo, this.hi, this.col, this.preFrac,
-      this.postFrac, this.cdp);
+  _IntradayPainter(this.p, this.times, this.t0, this.tN, this.prev, this.lo,
+      this.hi, this.col, this.preFrac, this.postFrac, this.cdp);
   @override
   void paint(Canvas c, Size s) {
     final range = (hi - lo).abs() < 1e-9 ? 1.0 : hi - lo;
     final n = p.length - 1;
-    double x(int i) => n == 0 ? 0 : i / n * s.width;
+    final useTime = times.length == p.length && tN != t0;
+    double x(int i) => useTime
+        ? (times[i] - t0) / (tN - t0) * s.width
+        : (n == 0 ? 0 : i / n * s.width);
     double y(double v) => s.height - (v - lo) / range * s.height;
 
     // CDP 壓力/支撐水平線
@@ -325,6 +339,8 @@ class _IntradayPainter extends CustomPainter {
   @override
   bool shouldRepaint(_IntradayPainter o) =>
       o.p != p ||
+      o.t0 != t0 ||
+      o.tN != tN ||
       o.preFrac != preFrac ||
       o.postFrac != postFrac ||
       o.cdp != cdp;
@@ -334,20 +350,31 @@ class _VolPainter extends CustomPainter {
   final List<double> v;
   final List<double> p;
   final double prev;
-  _VolPainter(this.v, this.p, this.prev);
+  final List<int> times;
+  final int t0, tN;
+  _VolPainter(this.v, this.p, this.prev, this.times, this.t0, this.tN);
   @override
   void paint(Canvas c, Size s) {
     if (v.isEmpty) return;
     final mx = v.reduce((a, b) => a > b ? a : b);
     if (mx <= 0) return;
     final n = v.length - 1;
-    final bw = n == 0 ? s.width : s.width / v.length;
+    final useTime = times.length == v.length && tN != t0;
+    // 依資料點的平均時間間隔換算柱寬（固定時段軸下，柱子寬度不再隨資料
+    // 筆數變動而伸縮）
+    final avgDt =
+        useTime && v.length > 1 ? (times.last - times.first) / n : 60;
+    final slot = useTime
+        ? s.width * avgDt / (tN - t0)
+        : (n == 0 ? s.width : s.width / v.length);
+    double x(int i) => useTime
+        ? (times[i] - t0) / (tN - t0) * s.width
+        : (n == 0 ? 0 : i / n * s.width);
     for (var i = 0; i < v.length; i++) {
       final h = v[i] / mx * s.height;
       final rising = i == 0 || p[i] >= (i > 0 ? p[i - 1] : prev);
       c.drawRect(
-        Rect.fromLTWH((n == 0 ? 0 : i / n * s.width), s.height - h,
-            bw * 0.7, h),
+        Rect.fromLTWH(x(i), s.height - h, slot * 0.7, h),
         Paint()
           ..color = (rising ? AppColors.up : AppColors.down)
               .withValues(alpha: 0.5),
@@ -356,7 +383,8 @@ class _VolPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_VolPainter o) => o.v != v;
+  bool shouldRepaint(_VolPainter o) =>
+      o.v != v || o.t0 != t0 || o.tN != tN;
 }
 
 /// 中線發散的水平長條（正右負左），給三大法人買賣超之類用
