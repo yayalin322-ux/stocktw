@@ -362,8 +362,8 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
                 child: ChangeText(q?.change, q?.changePct, size: 15),
               ),
               const Spacer(),
-              if (q?.isLimitUp == true) _tag('漲停', AppColors.up),
-              if (q?.isLimitDown == true) _tag('跌停', AppColors.down),
+              if (q?.isLimitUp == true) const LimitBadge(true),
+              if (q?.isLimitDown == true) const LimitBadge(false),
             ],
           ),
           const SizedBox(height: 10),
@@ -388,14 +388,6 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
       ),
     );
   }
-
-  Widget _tag(String t, Color c) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-            color: c.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(6)),
-        child: Text(t, style: TextStyle(color: c, fontWeight: FontWeight.w700)),
-      );
 
   Widget _chip(String t) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
@@ -540,9 +532,10 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
       context: context,
       backgroundColor: AppColors.surface,
       isScrollControlled: true,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
-      builder: (_) => StatefulBuilder(
+      builder: (sheetCtx) => StatefulBuilder(
         builder: (ctx, setSt) {
           Widget tile(String name, bool on, VoidCallback toggle) {
             final term = _indDesc[name] ?? name;
@@ -564,37 +557,63 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
             );
           }
 
-          return ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.only(bottom: 20),
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 16, 20, 4),
-                child: Text('主圖指標',
-                    style: TextStyle(
-                        color: AppColors.ink3,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
-              ),
-              for (var i = 0; i < _mainInd.length; i++)
-                tile(_mainInd[i].shortName, _mainSel.contains(i),
-                    () => _mainSel.contains(i)
-                        ? _mainSel.remove(i)
-                        : _mainSel.add(i)),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
-                child: Text('副圖指標（圖表下方）',
-                    style: TextStyle(
-                        color: AppColors.ink3,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
-              ),
-              for (var i = 0; i < _secInd.length; i++)
-                tile(_secInd[i].shortName, _secSel.contains(i),
-                    () => _secSel.contains(i)
-                        ? _secSel.remove(i)
-                        : _secSel.add(i)),
-            ],
+          // 小螢幕內容可能比可視高度長，固定一個上限高度＋常駐關閉鈕，
+          // 避免像之前那樣被撐到滿版、找不到地方可以關掉。
+          return SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.8,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
+                  child: Row(
+                    children: [
+                      const Text('選擇指標',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.pop(sheetCtx),
+                        child: const Text('完成'),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
+                        child: Text('主圖指標',
+                            style: TextStyle(
+                                color: AppColors.ink3,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                      for (var i = 0; i < _mainInd.length; i++)
+                        tile(_mainInd[i].shortName, _mainSel.contains(i),
+                            () => _mainSel.contains(i)
+                                ? _mainSel.remove(i)
+                                : _mainSel.add(i)),
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
+                        child: Text('副圖指標（圖表下方）',
+                            style: TextStyle(
+                                color: AppColors.ink3,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                      for (var i = 0; i < _secInd.length; i++)
+                        tile(_secInd[i].shortName, _secSel.contains(i),
+                            () => _secSel.contains(i)
+                                ? _secSel.remove(i)
+                                : _secSel.add(i)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -889,8 +908,21 @@ class _HoldingsTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('前 ${hs.length} 大成分股（權重近似，$kEtfAsOf；每季調整，以投信公告為準）',
+        Text('這裡收錄前 ${hs.length} 大成分股（權重近似，$kEtfAsOf；每季調整，以投信公告為準）',
             style: const TextStyle(fontSize: 11, color: AppColors.ink3)),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () => launchUrl(
+            Uri.parse(
+                'https://www.google.com/search?q=${Uri.encodeComponent('$code 成分股 完整清單')}'),
+            mode: LaunchMode.externalApplication,
+          ),
+          child: const Text('查看完整成分股清單（投信官網）→',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.accent,
+                  fontWeight: FontWeight.w600)),
+        ),
         const SizedBox(height: 12),
         for (final h in hs)
           InkWell(

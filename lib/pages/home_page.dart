@@ -284,6 +284,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                 price: quotes[s.id]?.price,
                 change: quotes[s.id]?.change,
                 changePct: quotes[s.id]?.changePct,
+                isLimitUp: quotes[s.id]?.isLimitUp ?? false,
+                isLimitDown: quotes[s.id]?.isLimitDown ?? false,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(

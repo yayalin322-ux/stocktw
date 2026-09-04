@@ -594,6 +594,10 @@ class QuoteRow extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  if (q?.isLimitUp == true || q?.isLimitDown == true) ...[
+                    LimitBadge(q!.isLimitUp),
+                    const SizedBox(height: 3),
+                  ],
                   PriceText(q?.price, q?.change, size: 17),
                   const SizedBox(height: 3),
                   ChangeText(q?.change, q?.changePct, size: 12),
@@ -748,6 +752,8 @@ class MarketTickerRow extends StatelessWidget {
   final num? changePct;
   final String? volumeText;
   final int? rank;
+  final bool isLimitUp;
+  final bool isLimitDown;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   const MarketTickerRow({
@@ -759,6 +765,8 @@ class MarketTickerRow extends StatelessWidget {
     this.changePct,
     this.volumeText,
     this.rank,
+    this.isLimitUp = false,
+    this.isLimitDown = false,
     this.onTap,
     this.onLongPress,
   });
@@ -801,9 +809,15 @@ class MarketTickerRow extends StatelessWidget {
             ),
             SizedBox(
               width: 74,
-              child: Text(price?.toStringAsFixed(2) ?? '--',
-                  textAlign: TextAlign.right,
-                  style: kNum.copyWith(fontSize: 14, color: c)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (isLimitUp || isLimitDown) LimitBadge(isLimitUp),
+                  Text(price?.toStringAsFixed(2) ?? '--',
+                      textAlign: TextAlign.right,
+                      style: kNum.copyWith(fontSize: 14, color: c)),
+                ],
+              ),
             ),
             SizedBox(
               width: 74,
@@ -926,4 +940,31 @@ class _ComparePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ComparePainter o) => o.series != series;
+}
+
+/// 漲停／跌停徽章：實色底＋淡光暈，比一般漲跌字更醒目
+class LimitBadge extends StatelessWidget {
+  final bool up;
+  const LimitBadge(this.up, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    final c = up ? AppColors.up : AppColors.down;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: c,
+        borderRadius: BorderRadius.circular(5),
+        boxShadow: [
+          BoxShadow(
+              color: c.withValues(alpha: 0.55), blurRadius: 7, spreadRadius: 0.5),
+        ],
+      ),
+      child: Text(up ? '漲停' : '跌停',
+          style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              height: 1.1)),
+    );
+  }
 }
