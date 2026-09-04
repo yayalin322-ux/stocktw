@@ -92,6 +92,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
 
   String _period = '日K';
   List<KLineEntity>? _entities;
+  int _visibleCandles = 0; // 0 表示還沒設定（顯示全部）；單指縮放用滑桿控制
   Intraday? _intraday;
   Map<String, double>? _cdp; // 分時圖 CDP 壓力/支撐
   bool _loadingChart = true;
@@ -161,6 +162,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
       DataUtil.calculateAll(e, _mainInd, _secInd);
       setState(() {
         _entities = e;
+        _visibleCandles = e.length; // 每次換週期預設顯示全部（縮到最小）
         _loadingChart = false;
       });
     } catch (err) {
@@ -274,9 +276,32 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
           ),
           if (_period != '分時') ...[
             _indicatorBar(),
+            if (_entities != null && _entities!.length > 20)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+                child: Row(
+                  children: [
+                    Icon(Icons.zoom_in, size: 15, color: AppColors.ink3),
+                    Expanded(
+                      child: Slider(
+                        min: 20,
+                        max: _entities!.length.toDouble(),
+                        value: (_visibleCandles > 0
+                                ? _visibleCandles
+                                : _entities!.length)
+                            .toDouble()
+                            .clamp(20, _entities!.length.toDouble()),
+                        onChanged: (v) =>
+                            setState(() => _visibleCandles = v.round()),
+                      ),
+                    ),
+                    Icon(Icons.zoom_out, size: 15, color: AppColors.ink3),
+                  ],
+                ),
+              ),
             Padding(
               padding: EdgeInsets.only(left: 16, top: 2),
-              child: Text('雙指縮放 K 線 · 長按看每根詳細 · 右上可全螢幕',
+              child: Text('拖動上面的滑桿單指縮放，或雙指縮放 · 長按看詳細 · 右上可全螢幕',
                   style: TextStyle(fontSize: 10, color: AppColors.ink3)),
             ),
           ],
@@ -478,8 +503,12 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
             style: TextStyle(color: AppColors.ink3)),
       );
     }
+    final n = _visibleCandles > 0 && _visibleCandles < _entities!.length
+        ? _visibleCandles
+        : _entities!.length;
+    final visible = _entities!.sublist(_entities!.length - n);
     return KChartWidget(
-      _entities,
+      visible,
       const KChartStyle(),
       _kchartColors(),
       isTrendLine: false,

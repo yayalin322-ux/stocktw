@@ -9,6 +9,21 @@ double? _d(dynamic v) {
   return double.tryParse(s);
 }
 
+/// TWSE 公司基本資料裡有些姓名生僻字是用 HTML 數字實體寫的
+/// （例如「洪麗&#23511;」），這裡把它解碼回真正的中文字。
+final _htmlEntity = RegExp(r'&#(x?[0-9a-fA-F]+);');
+String? _decodeHtml(dynamic v) {
+  final s = v?.toString().trim();
+  if (s == null || s.isEmpty) return null;
+  return s.replaceAllMapped(_htmlEntity, (m) {
+    final code = m[1]!;
+    final n = code.startsWith('x') || code.startsWith('X')
+        ? int.tryParse(code.substring(1), radix: 16)
+        : int.tryParse(code);
+    return n == null ? m[0]! : String.fromCharCode(n);
+  });
+}
+
 const industryMap = {
   '01': '水泥', '02': '食品', '03': '塑膠', '04': '紡織纖維',
   '05': '電機機械', '06': '電器電纜', '08': '玻璃陶瓷', '09': '造紙',
@@ -110,11 +125,22 @@ class FinancialsService {
       }
     }
 
-    _rev = await g('https://openapi.twse.com.tw/v1/opendata/t187ap05_L');
-    _inc = await g('https://openapi.twse.com.tw/v1/opendata/t187ap06_L_ci');
-    _div = await g('https://openapi.twse.com.tw/v1/opendata/t187ap45_L');
-    _prof = await g('https://openapi.twse.com.tw/v1/opendata/t187ap03_L');
-    _at = DateTime.now();
+    // 之前不管成功失敗都會把 _at 蓋成「現在」，只要開 App 當下剛好一次
+    // 網路不順、四份資料一份沒抓到，接下來 6 小時財報/董座資料就會整個
+    // 是空的（因為快取判斷會直接 return，不會再重試）。改成失敗的欄位
+    // 保留舊資料、不要用 null 蓋掉，而且只有「全部都成功」才把快取戳記
+    // 往後推 6 小時，否則下次呼叫就會立刻重試。
+    final rev = await g('https://openapi.twse.com.tw/v1/opendata/t187ap05_L');
+    final inc = await g('https://openapi.twse.com.tw/v1/opendata/t187ap06_L_ci');
+    final div = await g('https://openapi.twse.com.tw/v1/opendata/t187ap45_L');
+    final prof = await g('https://openapi.twse.com.tw/v1/opendata/t187ap03_L');
+    _rev = rev ?? _rev;
+    _inc = inc ?? _inc;
+    _div = div ?? _div;
+    _prof = prof ?? _prof;
+    if (rev != null && inc != null && div != null && prof != null) {
+      _at = DateTime.now();
+    }
   }
 
   Future<Revenue?> revenue(String code) async {
@@ -279,8 +305,8 @@ class FinancialsService {
     final ind = e['產業別']?.toString();
     return Profile(
       industry: industryMap[ind] ?? ind,
-      chairman: e['董事長']?.toString(),
-      ceo: e['總經理']?.toString(),
+      chairman: _decodeHtml(e['董事長']),
+      ceo: _decodeHtml(e['總經理']),
       listedDate: e['上市日期']?.toString(),
       foundedDate: e['成立日期']?.toString(),
       site: e['網址']?.toString(),

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../state.dart';
 import '../theme.dart';
 import 'glossary_page.dart';
 import 'onboarding_page.dart';
+
+const _kPrivacyUrl = 'https://stock-app-89b5a.web.app/privacy.html';
+const _kTermsUrl = 'https://stock-app-89b5a.web.app/terms.html';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -103,6 +107,19 @@ class SettingsPage extends ConsumerWidget {
             },
           ),
           const Divider(),
+          const _Header('關於'),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('隱私權政策'),
+            onTap: () =>
+                launchUrl(Uri.parse(_kPrivacyUrl), mode: LaunchMode.externalApplication),
+          ),
+          ListTile(
+            leading: const Icon(Icons.description_outlined),
+            title: const Text('服務條款'),
+            onTap: () =>
+                launchUrl(Uri.parse(_kTermsUrl), mode: LaunchMode.externalApplication),
+          ),
           const AboutListTile(
             applicationName: '台股 Pro',
             applicationVersion: '1.0.0',
