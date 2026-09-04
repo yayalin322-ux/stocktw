@@ -9,6 +9,7 @@ import 'models.dart';
 import 'services/candle_service.dart';
 import 'services/notifications.dart';
 import 'services/quote_service.dart';
+import 'services/widget_service.dart';
 import 'theme.dart';
 
 /// 於 main() override
@@ -405,6 +406,7 @@ class QuotesNotifier extends StateNotifier<Map<String, Quote>> {
   final Ref ref;
   Timer? _timer;
   bool _busy = false;
+  DateTime? _lastWidgetUpdate;
 
   /// 暫時訂閱（個股頁開著時），計數式
   final Map<String, int> _extra = {};
@@ -447,6 +449,13 @@ class QuotesNotifier extends StateNotifier<Map<String, Quote>> {
       if (fresh.isNotEmpty) {
         state = {...state, ...fresh};
         _checkAlerts();
+        // 桌面小工具不用跟著 5 秒報價一起洗，1 分鐘更新一次就夠
+        final now = DateTime.now();
+        if (_lastWidgetUpdate == null ||
+            now.difference(_lastWidgetUpdate!) > const Duration(minutes: 1)) {
+          _lastWidgetUpdate = now;
+          updateHomeWidget(ref.read(watchlistProvider), state);
+        }
       }
     } catch (_) {
       // 靜默：下一輪再試
