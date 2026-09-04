@@ -343,7 +343,7 @@ final alertsProvider =
 // ------------------------------------------------------------------
 class QuotesNotifier extends StateNotifier<Map<String, Quote>> {
   QuotesNotifier(this.ref) : super({}) {
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => refresh());
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) => refresh());
     refresh();
   }
   final Ref ref;
