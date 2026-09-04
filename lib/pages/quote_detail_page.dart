@@ -45,6 +45,10 @@ KChartColors _kchartColors() => KChartColors(
       minColor: AppColors.ink2,
       crossColor: AppColors.ink,
       crossTextColor: AppColors.ink,
+      // 長按十字線的價格/日期小標籤：套件預設是白底，暗色主題下會變成
+      // 兩個突兀的白色方塊，這裡改成跟卡片同色的底 + 邊框。
+      selectFillColor: AppColors.surface2,
+      selectBorderColor: AppColors.border,
     );
 
 String _yi(double? thousand) =>
