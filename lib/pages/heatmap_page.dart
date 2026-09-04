@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../services/financials_service.dart';
 import '../services/market_service.dart';
+import '../services/quote_service.dart';
 import '../theme.dart';
 import 'quote_detail_page.dart';
 
@@ -16,6 +17,7 @@ class HeatmapPage extends StatefulWidget {
 
 class _HeatmapPageState extends State<HeatmapPage> {
   Map<String, List<HeatCell>> _groups = {};
+  Map<String, Quote> _live = {}; // 用即時報價蓋掉 EOD 快照的漲跌幅
   int _total = 0;
   bool _loading = true;
 
@@ -24,6 +26,10 @@ class _HeatmapPageState extends State<HeatmapPage> {
     super.initState();
     _load();
   }
+
+  // 熱力圖的漲跌幅來源（STOCK_DAY_ALL）是收盤後才更新的每日快照，
+  // 盤中看會跟即時報價對不上——用即時報價蓋掉，跟成交量前20同一招。
+  double pctOf(HeatCell c) => _live[Symbol(c.code, Market.tse).id]?.changePct ?? c.changePct;
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -48,6 +54,11 @@ class _HeatmapPageState extends State<HeatmapPage> {
       _total = cells.length;
       _loading = false;
     });
+    try {
+      final syms = cells.map((c) => Symbol(c.code, Market.tse)).toList();
+      final live = await quoteService.fetch(syms);
+      if (mounted) setState(() => _live = live);
+    } catch (_) {}
   }
 
   // 漲跌幅換算成顏色深淺：0~7% 對應到 alpha 0.2~1.0
@@ -60,8 +71,8 @@ class _HeatmapPageState extends State<HeatmapPage> {
   @override
   Widget build(BuildContext context) {
     final all = _groups.values.expand((e) => e);
-    final up = all.where((c) => c.changePct > 0).length;
-    final down = all.where((c) => c.changePct < 0).length;
+    final up = all.where((c) => pctOf(c) > 0).length;
+    final down = all.where((c) => pctOf(c) < 0).length;
     final flat = _total - up - down;
     return Scaffold(
       appBar: AppBar(title: const Text('熱力圖')),
@@ -143,7 +154,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
                 ),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: _colorFor(c.changePct),
+                    color: _colorFor(pctOf(c)),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   padding: const EdgeInsets.all(4),
@@ -160,7 +171,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
                               fontWeight: FontWeight.w700)),
                       const SizedBox(height: 2),
                       Text(
-                          '${c.changePct >= 0 ? '+' : ''}${c.changePct.toStringAsFixed(1)}%',
+                          '${pctOf(c) >= 0 ? '+' : ''}${pctOf(c).toStringAsFixed(1)}%',
                           style: const TextStyle(
                               fontSize: 11,
                               color: Colors.white,
