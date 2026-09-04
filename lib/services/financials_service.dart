@@ -287,6 +287,18 @@ class FinancialsService {
       capital: _d(e['實收資本額']),
     );
   }
+
+  /// 確保公司基本資料（含產業別）已載入，給批次查產業別用
+  Future<void> ensureProfiles() => _ensure();
+
+  /// 同步查產業別（要先呼叫過 ensureProfiles/profile 讓資料就緒）
+  String? industryOf(String code) {
+    final e = _prof?.cast<Map>().firstWhere((x) => x['公司代號'] == code,
+        orElse: () => {});
+    if (e == null || e.isEmpty) return null;
+    final ind = e['產業別']?.toString();
+    return industryMap[ind] ?? ind;
+  }
 }
 
 final financialsService = FinancialsService();

@@ -1131,3 +1131,22 @@ class PreOpenCard extends StatelessWidget {
     );
   }
 }
+
+/// 資料只在第一次 build 時抓一次；父層之後不管重建幾次（例如報價每秒
+/// 輪詢）都不會讓這裡重新變成 loading 狀態，避免畫面一直閃/跳動。
+class CachedFutureBuilder<T> extends StatefulWidget {
+  final Future<T> Function() future;
+  final Widget Function(BuildContext, AsyncSnapshot<T>) builder;
+  const CachedFutureBuilder(
+      {super.key, required this.future, required this.builder});
+  @override
+  State<CachedFutureBuilder<T>> createState() =>
+      _CachedFutureBuilderState<T>();
+}
+
+class _CachedFutureBuilderState<T> extends State<CachedFutureBuilder<T>> {
+  late final Future<T> _f = widget.future();
+  @override
+  Widget build(BuildContext context) =>
+      FutureBuilder<T>(future: _f, builder: widget.builder);
+}

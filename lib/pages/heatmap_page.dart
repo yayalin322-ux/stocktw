@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../models.dart';
+import '../services/financials_service.dart';
 import '../services/market_service.dart';
 import '../theme.dart';
 import 'quote_detail_page.dart';
 
-/// 成交值前幾大個股的漲跌熱力圖：格子顏色深淺 = 漲跌幅大小
+/// 成交值前幾大個股的漲跌熱力圖，依產業族群分組（電子細分成半導體／
+/// 光電／通信網路／電子零組件…等 TWSE 自己的分類，不是籠統一包）
 class HeatmapPage extends StatefulWidget {
   const HeatmapPage({super.key});
   @override
@@ -13,7 +15,8 @@ class HeatmapPage extends StatefulWidget {
 }
 
 class _HeatmapPageState extends State<HeatmapPage> {
-  List<HeatCell> _cells = [];
+  Map<String, List<HeatCell>> _groups = {};
+  int _total = 0;
   bool _loading = true;
 
   @override
@@ -24,10 +27,25 @@ class _HeatmapPageState extends State<HeatmapPage> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final cells = await marketService.heatmap(take: 60);
+    final cells = await marketService.heatmap(take: 90);
+    await financialsService.ensureProfiles();
+    final groups = <String, List<HeatCell>>{};
+    for (final c in cells) {
+      final ind = financialsService.industryOf(c.code) ?? '其他';
+      groups.putIfAbsent(ind, () => []).add(c);
+    }
+    for (final l in groups.values) {
+      l.sort((a, b) => b.turnoverYi.compareTo(a.turnoverYi));
+    }
+    // 族群依組內總成交值排序，熱門的排前面
+    final order = groups.entries.toList()
+      ..sort((a, b) =>
+          b.value.fold<double>(0, (s, e) => s + e.turnoverYi).compareTo(
+              a.value.fold<double>(0, (s, e) => s + e.turnoverYi)));
     if (!mounted) return;
     setState(() {
-      _cells = cells;
+      _groups = {for (final e in order) e.key: e.value};
+      _total = cells.length;
       _loading = false;
     });
   }
@@ -41,9 +59,10 @@ class _HeatmapPageState extends State<HeatmapPage> {
 
   @override
   Widget build(BuildContext context) {
-    final up = _cells.where((c) => c.changePct > 0).length;
-    final down = _cells.where((c) => c.changePct < 0).length;
-    final flat = _cells.length - up - down;
+    final all = _groups.values.expand((e) => e);
+    final up = all.where((c) => c.changePct > 0).length;
+    final down = all.where((c) => c.changePct < 0).length;
+    final flat = _total - up - down;
     return Scaffold(
       appBar: AppBar(title: const Text('熱力圖')),
       body: _loading
@@ -55,7 +74,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
                 children: [
                   Row(
                     children: [
-                      Text('成交值前 ${_cells.length} 大個股',
+                      Text('成交值前 $_total 大個股・依產業分組',
                           style: const TextStyle(
                               fontSize: 12, color: AppColors.ink3)),
                       const Spacer(),
@@ -66,67 +85,94 @@ class _HeatmapPageState extends State<HeatmapPage> {
                       _dot(AppColors.down, '$down 跌'),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      mainAxisSpacing: 4,
-                      crossAxisSpacing: 4,
-                      childAspectRatio: 0.95,
-                    ),
-                    itemCount: _cells.length,
-                    itemBuilder: (context, i) {
-                      final c = _cells[i];
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(6),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => QuoteDetailPage(
-                              symbol: Symbol(c.code, Market.tse),
-                              name: c.name,
-                            ),
-                          ),
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: _colorFor(c.changePct),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          padding: const EdgeInsets.all(4),
-                          alignment: Alignment.center,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(c.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 2),
-                              Text(
-                                  '${c.changePct >= 0 ? '+' : ''}${c.changePct.toStringAsFixed(1)}%',
-                                  style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800)),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('格子顏色深淺代表漲跌幅大小；依成交值排序，越前面代表成交越熱絡',
+                  const SizedBox(height: 6),
+                  for (final e in _groups.entries) _groupSection(e.key, e.value),
+                  const SizedBox(height: 8),
+                  const Text('格子顏色深淺代表漲跌幅大小；族群跟個股都依成交值排序',
                       style: TextStyle(fontSize: 11, color: AppColors.ink3)),
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _groupSection(String industry, List<HeatCell> cells) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 3,
+              height: 13,
+              decoration: BoxDecoration(
+                  color: AppColors.accent, borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(width: 7),
+            Text(industry,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 6),
+            Text('${cells.length} 檔',
+                style: const TextStyle(fontSize: 11, color: AppColors.ink3)),
+          ]),
+          const SizedBox(height: 6),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+              childAspectRatio: 0.95,
+            ),
+            itemCount: cells.length,
+            itemBuilder: (context, i) {
+              final c = cells[i];
+              return InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => QuoteDetailPage(
+                      symbol: Symbol(c.code, Market.tse),
+                      name: c.name,
+                    ),
+                  ),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _colorFor(c.changePct),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(c.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text(
+                          '${c.changePct >= 0 ? '+' : ''}${c.changePct.toStringAsFixed(1)}%',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 

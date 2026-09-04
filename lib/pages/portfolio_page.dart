@@ -319,7 +319,7 @@ class _DividendEstimate extends StatelessWidget {
   Widget build(BuildContext context) {
     final tw = positions.where((p) => p.market.isTW).toList();
     if (tw.isEmpty) return const SizedBox();
-    return FutureBuilder<double>(
+    return CachedFutureBuilder<double>(
       future: () async {
         double sum = 0;
         for (final p in tw) {
@@ -327,7 +327,7 @@ class _DividendEstimate extends StatelessWidget {
           if (h.isNotEmpty) sum += h.first.cash * p.shares;
         }
         return sum;
-      }(),
+      },
       builder: (c, snap) {
         if (!snap.hasData || snap.data == 0) return const SizedBox();
         return Row(

@@ -704,8 +704,8 @@ class _FinancialsTab extends StatelessWidget {
   const _FinancialsTab({required this.code});
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: Future.wait([
+    return CachedFutureBuilder(
+      future: () => Future.wait([
         financialsService.revenue(code),
         financialsService.income(code),
       ]),
@@ -781,8 +781,8 @@ class _DividendTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: Future.wait([
+    return CachedFutureBuilder(
+      future: () => Future.wait([
         financialsService.dividends(code),
         financialsService.exDividend(code),
         financialsService.dividendHistory(code, true),
@@ -988,8 +988,8 @@ class _ChipTab extends StatelessWidget {
   const _ChipTab({required this.code});
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: Future.wait([
+    return CachedFutureBuilder(
+      future: () => Future.wait([
         fundamentalsService.fetch(code),
         financialsService.margin(code),
       ]),
@@ -1071,8 +1071,8 @@ class _NewsTab extends StatelessWidget {
   const _NewsTab({required this.code, required this.name, this.tw = true});
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<NewsItem>>(
-      future: newsService.fetch(code, name, tw: tw),
+    return CachedFutureBuilder<List<NewsItem>>(
+      future: () => newsService.fetch(code, name, tw: tw),
       builder: (c, snap) {
         if (snap.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
