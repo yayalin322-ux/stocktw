@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>台股 Pro 管理後台</title>
+<title>股市 Pro 管理後台</title>
 <style>
   :root {
     --bg:#0b0e13; --surface:#141922; --surface2:#1c2430; --border:#2a3441;
@@ -46,7 +46,7 @@
 </head>
 <body>
 <div class="row" style="justify-content:space-between">
-  <h1>台股 Pro · 管理後台</h1>
+  <h1>股市 Pro · 管理後台</h1>
   <button class="ghost icon" id="themeBtn" title="切換淺色/深色">🌓</button>
 </div>
 
@@ -68,6 +68,15 @@
       <div class="stat"><b id="s_activeAlerts">--</b><span class="muted">待觸發提醒</span></div>
       <div class="stat"><b id="s_triggeredAlerts">--</b><span class="muted">已觸發提醒</span></div>
     </div>
+  </div>
+
+  <h2>使用者意見反饋</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>內容</th><th>聯絡方式</th><th>時間</th></tr></thead>
+      <tbody id="feedbackRows"></tbody>
+    </table>
+    <div class="empty" id="feedbackEmpty" style="display:none">還沒有意見反饋</div>
   </div>
 
   <h2>裝置清單</h2>
@@ -182,6 +191,26 @@ async function loadOverview() {
   } catch (e) { msg(e.message, false); }
 }
 
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+async function loadFeedback() {
+  try {
+    const q = query(collection(db, "feedback"), orderBy("createdAt", "desc"), limit(30));
+    const snap = await getDocs(q);
+    const rows = [];
+    snap.forEach((d) => {
+      const v = d.data();
+      rows.push(`<tr><td>${esc(v.message)}</td><td>${esc(v.contact)}</td><td>${fmtTime(v.createdAt)}</td></tr>`);
+    });
+    $("feedbackRows").innerHTML = rows.join("");
+    $("feedbackEmpty").style.display = rows.length ? "none" : "block";
+  } catch (e) { msg(e.message, false); }
+}
+
 async function loadBroadcasts() {
   try {
     const q = query(collection(db, "broadcasts"), orderBy("createdAt", "desc"), limit(10));
@@ -215,6 +244,7 @@ onAuthStateChanged(auth, async (u) => {
 
   loadOverview();
   loadBroadcasts();
+  loadFeedback();
 });
 
 $("saveAnnounce").onclick = async () => {

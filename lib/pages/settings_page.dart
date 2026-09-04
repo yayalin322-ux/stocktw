@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../state.dart';
 import '../theme.dart';
+import 'feedback_page.dart';
 import 'glossary_page.dart';
 import 'onboarding_page.dart';
-
-const _kPrivacyUrl = 'https://stock-app-89b5a.web.app/privacy.html';
-const _kTermsUrl = 'https://stock-app-89b5a.web.app/terms.html';
+import 'privacy_page.dart';
+import 'terms_page.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -53,7 +52,7 @@ class SettingsPage extends ConsumerWidget {
           const _Header('資料來源'),
           const ListTile(
             title: Text('即時報價 / 五檔'),
-            subtitle: Text('證交所 MIS（免金鑰，約 6 秒更新一次）'),
+            subtitle: Text('證交所 MIS（免金鑰，約 5 秒更新一次）'),
           ),
           const ListTile(
             title: Text('K 線歷史'),
@@ -107,21 +106,30 @@ class SettingsPage extends ConsumerWidget {
             },
           ),
           const Divider(),
+          const _Header('意見反饋'),
+          ListTile(
+            leading: const Icon(Icons.chat_bubble_outline, color: AppColors.accent),
+            title: const Text('意見反饋 / 客服'),
+            subtitle: const Text('問題回報、功能建議，直接送到後台'),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const FeedbackPage())),
+          ),
+          const Divider(),
           const _Header('關於'),
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
             title: const Text('隱私權政策'),
-            onTap: () =>
-                launchUrl(Uri.parse(_kPrivacyUrl), mode: LaunchMode.externalApplication),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const PrivacyPage())),
           ),
           ListTile(
             leading: const Icon(Icons.description_outlined),
             title: const Text('服務條款'),
-            onTap: () =>
-                launchUrl(Uri.parse(_kTermsUrl), mode: LaunchMode.externalApplication),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const TermsPage())),
           ),
           const AboutListTile(
-            applicationName: '台股 Pro',
+            applicationName: '股市 Pro',
             applicationVersion: '1.0.0',
             child: Text('關於'),
           ),

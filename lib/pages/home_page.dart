@@ -86,7 +86,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       appBar: AppBar(
         titleSpacing: 16,
         title: Row(children: const [
-          Text('台股 Pro'),
+          Text('股市 Pro'),
           SizedBox(width: 10),
           SessionPill(),
         ]),

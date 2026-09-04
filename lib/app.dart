@@ -22,7 +22,7 @@ class StockApp extends ConsumerWidget {
     // 開著的頁面）都套用新的顏色，不會有部分頁面沒跟著換。
     return MaterialApp(
       key: ValueKey(light),
-      title: '台股 Pro',
+      title: '股市 Pro',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
       home: const HomeShell(),

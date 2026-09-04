@@ -32,5 +32,14 @@ service cloud.firestore {
       allow create: if isOwner();
       allow update, delete: if false;
     }
+
+    // 意見反饋：任何人可寫（App 內表單，不用登入），只有擁有者能看
+    match /feedback/{id} {
+      allow read: if isOwner();
+      allow create: if request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() < 2000;
+      allow update, delete: if false;
+    }
   }
 }
