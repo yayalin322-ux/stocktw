@@ -134,10 +134,13 @@ class IntradayChart extends StatelessWidget {
     var regPrices = prices;
     var regVolumes = volumes;
     var regTimes = times;
+    var prePrices = const <double>[];
+    var preTimes = const <int>[];
     var postPrices = const <double>[];
     var postTimes = const <int>[];
     if (useTimeAll && regStart != null && regEnd != null) {
       final rp = <double>[], rv = <double>[], rt = <int>[];
+      final ep = <double>[], et = <int>[];
       final pp = <double>[], pt = <int>[];
       for (var i = 0; i < prices.length; i++) {
         final t = times[i];
@@ -145,7 +148,10 @@ class IntradayChart extends StatelessWidget {
           rp.add(prices[i]);
           rv.add(volumes[i]);
           rt.add(t);
-        } else if (t > regEnd!) {
+        } else if (t < regStart!) {
+          ep.add(prices[i]);
+          et.add(t);
+        } else {
           pp.add(prices[i]);
           pt.add(t);
         }
@@ -155,11 +161,21 @@ class IntradayChart extends StatelessWidget {
         regVolumes = rv;
         regTimes = rt;
       }
+      prePrices = ep;
+      preTimes = et;
       postPrices = pp;
       postTimes = pt;
     }
 
     if (regPrices.length < 2) {
+      // 還沒開盤：只有試搓資料的話單獨顯示盤前專區，不要整個空白
+      if (prePrices.length > 1) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: _PrePostSection(
+              '盤前試搓', AppColors.warn, prePrices, preTimes, prevClose),
+        );
+      }
       return const Center(
           child: Text('無分時資料（非交易時段）',
               style: TextStyle(color: AppColors.ink3)));
@@ -190,6 +206,9 @@ class IntradayChart extends StatelessWidget {
 
     return Column(
       children: [
+        if (prePrices.length > 1)
+          _PrePostSection(
+              '盤前試搓', AppColors.warn, prePrices, preTimes, prevClose),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
           child: Row(
@@ -256,7 +275,8 @@ class IntradayChart extends StatelessWidget {
           ),
         ),
         if (postPrices.length > 1)
-          _PostMarketSection(postPrices, postTimes, regPrices.last),
+          _PrePostSection(
+              '盤後專區', AppColors.accent, postPrices, postTimes, regPrices.last),
       ],
     );
   }
@@ -267,20 +287,23 @@ class IntradayChart extends StatelessWidget {
   }
 }
 
-/// 盤後專區：跟主圖分開，避免擠在同一張圖裡看不清楚
-class _PostMarketSection extends StatelessWidget {
+/// 盤前試搓／盤後專區：跟主圖分開一張小卡呈現，不擠在同一張圖裡
+class _PrePostSection extends StatelessWidget {
+  final String label;
+  final Color badgeColor;
   final List<double> prices;
   final List<int> times;
-  final double regClose; // 正常盤收盤價（漲跌基準）
-  const _PostMarketSection(this.prices, this.times, this.regClose);
+  final double refPrice; // 漲跌基準（盤前用昨收、盤後用正常盤收盤）
+  const _PrePostSection(
+      this.label, this.badgeColor, this.prices, this.times, this.refPrice);
 
   @override
   Widget build(BuildContext context) {
     final last = prices.last;
     final hiP = prices.reduce((a, b) => a > b ? a : b);
     final loP = prices.reduce((a, b) => a < b ? a : b);
-    final chg = last - regClose;
-    final chgPct = regClose == 0 ? 0.0 : chg / regClose * 100;
+    final chg = last - refPrice;
+    final chgPct = refPrice == 0 ? 0.0 : chg / refPrice * 100;
     final c = AppColors.forChange(chg);
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
@@ -298,12 +321,12 @@ class _PostMarketSection extends StatelessWidget {
               padding:
                   const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                  color: AppColors.warn.withValues(alpha: 0.18),
+                  color: badgeColor.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(4)),
-              child: const Text('盤後專區',
+              child: Text(label,
                   style: TextStyle(
                       fontSize: 10,
-                      color: AppColors.warn,
+                      color: badgeColor,
                       fontWeight: FontWeight.w700)),
             ),
             const SizedBox(width: 8),
@@ -320,14 +343,14 @@ class _PostMarketSection extends StatelessWidget {
           ]),
           const SizedBox(height: 8),
           SizedBox(
-              height: 34, child: Sparkline(prices, baseline: regClose)),
+              height: 34, child: Sparkline(prices, baseline: refPrice)),
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('盤後高 ${hiP.toStringAsFixed(2)}',
+              Text('高 ${hiP.toStringAsFixed(2)}',
                   style: const TextStyle(fontSize: 10, color: AppColors.ink3)),
-              Text('盤後低 ${loP.toStringAsFixed(2)}',
+              Text('低 ${loP.toStringAsFixed(2)}',
                   style: const TextStyle(fontSize: 10, color: AppColors.ink3)),
             ],
           ),
@@ -1050,6 +1073,61 @@ class LimitBadge extends StatelessWidget {
               fontWeight: FontWeight.w800,
               color: Colors.white,
               height: 1.1)),
+    );
+  }
+}
+
+/// 盤前試搓卡：TWSE/Yahoo 都沒有公開的盤前逐筆歷史，只能顯示「現在」
+/// 這一筆試搓價（跟五檔同一份即時資料），不硬畫假的走勢圖。
+class PreOpenCard extends StatelessWidget {
+  final double? price;
+  final double? prevClose;
+  final String clock;
+  const PreOpenCard(
+      {super.key, required this.price, required this.prevClose, required this.clock});
+
+  @override
+  Widget build(BuildContext context) {
+    final chg =
+        (price != null && prevClose != null) ? price! - prevClose! : null;
+    final chgPct = (chg != null && (prevClose ?? 0) != 0)
+        ? chg / prevClose! * 100
+        : null;
+    final c = chg == null ? AppColors.ink3 : AppColors.forChange(chg);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                  color: AppColors.warn.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(5)),
+              child: const Text('盤前試搓',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.warn,
+                      fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(height: 12),
+            Text(price?.toStringAsFixed(2) ?? '--',
+                style: kNum.copyWith(fontSize: 32, color: c)),
+            const SizedBox(height: 4),
+            Text(
+                chg == null
+                    ? '－'
+                    : '${chg >= 0 ? '+' : ''}${chg.toStringAsFixed(2)}'
+                        '（${chgPct! >= 0 ? '+' : ''}${chgPct.toStringAsFixed(2)}%）',
+                style: TextStyle(fontSize: 13, color: c)),
+            const SizedBox(height: 10),
+            Text('$clock 試搓・09:00 開盤後開始畫分時走勢',
+                style: const TextStyle(fontSize: 11, color: AppColors.ink3)),
+          ],
+        ),
+      ),
     );
   }
 }

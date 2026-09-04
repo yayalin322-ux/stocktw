@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:k_chart_plus/k_chart_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../market_session.dart';
 import '../models.dart';
 import '../services/candle_service.dart';
 import '../services/market_service.dart';
@@ -444,10 +445,21 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
     if (_period == '分時') {
       final id = _intraday;
       final c = id?.points ?? const <Candle>[];
-      final q = ref.read(quoteProvider(widget.symbol));
+      final q = ref.watch(quoteProvider(widget.symbol));
       final prev = q?.prevClose ??
           id?.prevClose ??
           (c.isNotEmpty ? c.first.open : 0).toDouble();
+      // Yahoo 沒有台股盤前試搓的歷史 tick，開盤前用即時報價顯示現在
+      // 這一筆試搓價，不硬畫假的走勢圖。
+      if (c.length < 2 &&
+          _isTW &&
+          currentSession().session == MarketSession.preOpen) {
+        return PreOpenCard(
+          price: q?.price,
+          prevClose: prev,
+          clock: currentSession().clock,
+        );
+      }
       return IntradayChart(
         c.map((e) => e.close).toList(),
         c.map((e) => e.volume).toList(),

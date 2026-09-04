@@ -222,6 +222,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   // ---------- 持倉 ----------
   Widget _portfolioCard(double pnl, double value) {
+    final hide = ref.watch(hideAmountsProvider);
     return Card(
       child: Column(
         children: [
@@ -238,7 +239,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         style:
                             TextStyle(fontSize: 11, color: AppColors.ink3)),
                     const SizedBox(height: 2),
-                    Text(signed(pnl, 0),
+                    Text(maskable(hide, signed(pnl, 0)),
                         style: kNum.copyWith(
                             fontSize: 23, color: AppColors.forChange(pnl))),
                   ],
@@ -251,7 +252,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         style:
                             TextStyle(fontSize: 11, color: AppColors.ink3)),
                     const SizedBox(height: 2),
-                    Text(nf0.format(value),
+                    Text(maskable(hide, nf0.format(value)),
                         style: kNum.copyWith(fontSize: 17)),
                   ],
                 ),

@@ -194,27 +194,23 @@ class WatchlistNotifier extends StateNotifier<List<Symbol>> {
   }
 
   // ---------- QR 匯出／匯入 ----------
-  /// 編成給 QR code 用的緊湊 JSON 字串
-  String exportPayload() {
-    return jsonEncode({
-      't': 'wl',
-      'v': 1,
-      'g': [
-        for (final name in _order)
-          {'n': name, 's': _groups[name]!.map((s) => s.id).toList()},
-      ],
-    });
-  }
+  int get totalCount => _groups.values.fold(0, (a, l) => a + l.length);
+
+  /// 給 QR 匯出用的資料（純 Map，外層由匯出頁決定怎麼包）
+  Map<String, dynamic> exportMap() => {
+        'g': [
+          for (final name in _order)
+            {'n': name, 's': _groups[name]!.map((s) => s.id).toList()},
+        ],
+      };
 
   /// 掃描別台手機的 QR 後合併進來（同名群組合併，不覆蓋既有資料）。
-  /// 回傳 (新增群組數, 新增股票數)；payload 格式不對會丟例外。
-  (int, int) importMerge(String payload) {
-    final obj = jsonDecode(payload);
-    if (obj is! Map || obj['t'] != 'wl' || obj['g'] is! List) {
-      throw const FormatException('不是自選股 QR 碼');
-    }
+  /// 回傳 (新增群組數, 新增股票數)。
+  (int, int) importMerge(Map<String, dynamic> wlMap) {
+    final gList = wlMap['g'];
+    if (gList is! List) return (0, 0);
     var newGroups = 0, newStocks = 0;
-    for (final g in (obj['g'] as List)) {
+    for (final g in gList) {
       if (g is! Map || g['n'] is! String || g['s'] is! List) continue;
       final name = g['n'] as String;
       final syms = (g['s'] as List).whereType<String>().map(Symbol.parse);
@@ -271,6 +267,27 @@ class PortfolioNotifier extends StateNotifier<List<Position>> {
   void remove(String id) {
     state = state.where((e) => e.id != id).toList();
     _save();
+  }
+
+  /// 給 QR 匯出用的資料
+  List<Map<String, dynamic>> exportMap() =>
+      state.map((e) => e.toJson()).toList();
+
+  /// QR 匯入：只新增本來沒有的標的，已存在的成本/股數不覆蓋。
+  /// 回傳新增了幾檔。
+  int importMerge(List<Position> incoming) {
+    var added = 0;
+    var next = state;
+    for (final p in incoming) {
+      if (next.any((e) => e.id == p.id)) continue;
+      next = [...next, p];
+      added++;
+    }
+    if (added > 0) {
+      state = next;
+      _save();
+    }
+    return added;
   }
 }
 
@@ -495,3 +512,26 @@ final notesProvider =
 final noteProvider = Provider.family<String, String>((ref, id) {
   return ref.watch(notesProvider)[id] ?? '';
 });
+
+// ------------------------------------------------------------------
+// 持倉金額隱私開關（持倉頁「眼睛」鈕，記住上次的選擇）
+// ------------------------------------------------------------------
+class HideAmountsNotifier extends StateNotifier<bool> {
+  HideAmountsNotifier(this._prefs)
+      : super(_prefs.getBool(_key) ?? false);
+  final SharedPreferences _prefs;
+  static const _key = 'hideAmounts';
+
+  void toggle() {
+    state = !state;
+    _prefs.setBool(_key, state);
+  }
+}
+
+final hideAmountsProvider =
+    StateNotifierProvider<HideAmountsNotifier, bool>((ref) {
+  return HideAmountsNotifier(ref.watch(prefsProvider));
+});
+
+/// 依隱私開關決定要顯示原字串還是遮住
+String maskable(bool hide, String text) => hide ? '••••••' : text;

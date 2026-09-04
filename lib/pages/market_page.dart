@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../market_session.dart';
 import '../models.dart';
 import '../services/market_service.dart';
+import '../services/quote_service.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'ex_calendar_page.dart';
@@ -25,6 +26,7 @@ class _MarketPageState extends ConsumerState<MarketPage> {
   List<double> _spark = [];
   List<InstFlow> _inst = [];
   List<HotStock> _hot = [];
+  Map<String, Quote> _hotQuotes = {}; // 用即時報價蓋掉排行榜裡的舊價
   IndexQuote? _fx;
   Timer? _t;
 
@@ -50,6 +52,16 @@ class _MarketPageState extends ConsumerState<MarketPage> {
       _spark = spark.map((c) => c.close).toList();
       _fx = fx;
     });
+    _loadHotQuotes();
+  }
+
+  Future<void> _loadHotQuotes() async {
+    if (_hot.isEmpty) return;
+    try {
+      final syms = _hot.map((h) => Symbol(h.code, Market.tse)).toList();
+      final q = await quoteService.fetch(syms);
+      if (mounted) setState(() => _hotQuotes = q);
+    } catch (_) {}
   }
 
   Future<void> _loadLive() async {
@@ -57,6 +69,7 @@ class _MarketPageState extends ConsumerState<MarketPage> {
       final idx = await marketService.indices();
       if (mounted) setState(() => _idx = idx);
     } catch (_) {}
+    _loadHotQuotes();
   }
 
   @override
@@ -333,9 +346,11 @@ class _MarketPageState extends ConsumerState<MarketPage> {
   }
 
   Widget _hotCard() {
-    String vol(int v) => v >= 10000
-        ? '${(v / 10000).toStringAsFixed(1)}萬'
-        : nf0.format(v);
+    // 成交量單位：MI_INDEX20 給的是「股」，換算成「張」（1張=1000股）
+    // 再依張數決定要不要顯示成「萬張」，跟個股頁的量單位一致。
+    String vol(num lots) => lots >= 10000
+        ? '${(lots / 10000).toStringAsFixed(1)}萬張'
+        : '${nf0.format(lots)}張';
     return Card(
       child: Column(
         children: [
@@ -344,20 +359,33 @@ class _MarketPageState extends ConsumerState<MarketPage> {
                   MaterialPageRoute(builder: (_) => const ScreenerPage()))),
           for (final (i, h) in _hot.take(15).indexed) ...[
             const Divider(height: 1),
-            MarketTickerRow(
-              rank: i + 1,
-              name: h.name,
-              code: h.code,
-              price: h.close,
-              change: h.change,
-              changePct: (h.close != null &&
-                      h.change != null &&
-                      (h.close! - h.change!) != 0)
-                  ? h.change! / (h.close! - h.change!) * 100
-                  : null,
-              volumeText: vol(h.volume),
-              onTap: () => _open(h.code, h.name, Market.tse),
-            ),
+            Builder(builder: (_) {
+              // 排行榜本身只在收盤後更新一次，價格會跟即時報價對不上；
+              // 這裡改用個股即時報價（跟個股頁同一份資料）蓋掉舊值，
+              // 量抓不到即時的才退回排行榜當天的量。
+              final q = _hotQuotes[Symbol(h.code, Market.tse).id];
+              final price = q?.price ?? h.close;
+              final change = q?.change ?? h.change;
+              final changePct = q?.changePct ??
+                  ((h.close != null &&
+                          h.change != null &&
+                          (h.close! - h.change!) != 0)
+                      ? h.change! / (h.close! - h.change!) * 100
+                      : null);
+              final lots = q?.volume ?? (h.volume / 1000);
+              return MarketTickerRow(
+                rank: i + 1,
+                name: h.name,
+                code: h.code,
+                price: price,
+                change: change,
+                changePct: changePct,
+                volumeText: vol(lots),
+                isLimitUp: q?.isLimitUp ?? false,
+                isLimitDown: q?.isLimitDown ?? false,
+                onTap: () => _open(h.code, h.name, Market.tse),
+              );
+            }),
           ],
           const SizedBox(height: 6),
         ],

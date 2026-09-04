@@ -128,7 +128,6 @@ class WatchlistPage extends ConsumerWidget {
     );
   }
 
-  // 群組選單
   // QR 分享 / 掃描匯入
   void _qrSheet(BuildContext context) {
     showModalBottomSheet(
@@ -141,7 +140,7 @@ class WatchlistPage extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.qr_code_2, color: AppColors.accent),
               title: const Text('產生 QR 碼分享'),
-              subtitle: const Text('把目前所有群組跟自選股編成 QR 給別人掃',
+              subtitle: const Text('把自選股、持倉編成 QR 給別人掃（可選要匯出哪些）',
                   style: TextStyle(fontSize: 12)),
               onTap: () {
                 Navigator.pop(context);
@@ -153,7 +152,7 @@ class WatchlistPage extends ConsumerWidget {
               leading:
                   const Icon(Icons.qr_code_scanner, color: AppColors.accent),
               title: const Text('掃描 QR 碼匯入'),
-              subtitle: const Text('把別人分享的自選股加進來（不會覆蓋現有資料）',
+              subtitle: const Text('把別人分享的資料加進來（可選要匯入哪些，不會覆蓋現有資料）',
                   style: TextStyle(fontSize: 12)),
               onTap: () {
                 Navigator.pop(context);

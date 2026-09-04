@@ -25,9 +25,17 @@ class PortfolioPage extends ConsumerWidget {
     }
     final pnl = value - cost;
     final pnlPct = cost == 0 ? 0.0 : pnl / cost * 100;
+    final hide = ref.watch(hideAmountsProvider);
+    String m(String s) => maskable(hide, s);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('持倉')),
+      appBar: AppBar(title: const Text('持倉'), actions: [
+        IconButton(
+          icon: Icon(hide ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+          tooltip: hide ? '顯示金額' : '隱藏金額',
+          onPressed: () => ref.read(hideAmountsProvider.notifier).toggle(),
+        ),
+      ]),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final r = await pickSymbol(context);
@@ -52,19 +60,19 @@ class PortfolioPage extends ConsumerWidget {
                       style: TextStyle(color: AppColors.ink3, fontSize: 12)),
                   const SizedBox(height: 4),
                   Text(
-                    signed(pnl, 0),
+                    m(signed(pnl, 0)),
                     style: kNum.copyWith(
                         fontSize: 30, color: AppColors.forChange(pnl)),
                   ),
-                  Text('${signed(pnlPct, 2)}%',
+                  Text(m('${signed(pnlPct, 2)}%'),
                       style: kNum.copyWith(
                           fontSize: 14, color: AppColors.forChange(pnl))),
                   const Divider(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      StatTile('總成本', nf0.format(cost)),
-                      StatTile('總市值', nf0.format(value)),
+                      StatTile('總成本', m(nf0.format(cost))),
+                      StatTile('總市值', m(nf0.format(value))),
                     ],
                   ),
                   if (positions.length > 1) ...[
@@ -72,7 +80,7 @@ class PortfolioPage extends ConsumerWidget {
                     _AllocationBar(positions: positions, quotes: quotes),
                   ],
                   const SizedBox(height: 14),
-                  _DividendEstimate(positions: positions),
+                  _DividendEstimate(positions: positions, hide: hide),
                 ],
               ),
             ),
@@ -86,15 +94,16 @@ class PortfolioPage extends ConsumerWidget {
             ),
           for (final p in positions)
             _posRow(context, ref, p,
-                quotes[Symbol(p.code, p.market).id]?.price),
+                quotes[Symbol(p.code, p.market).id]?.price, hide),
         ],
       ),
     );
   }
 
   Widget _posRow(
-      BuildContext context, WidgetRef ref, Position p, double? px) {
+      BuildContext context, WidgetRef ref, Position p, double? px, bool hide) {
     final pnl = p.pnl(px);
+    String m(String s) => maskable(hide, s);
     return Dismissible(
       key: ValueKey(p.id),
       direction: DismissDirection.endToStart,
@@ -110,7 +119,7 @@ class PortfolioPage extends ConsumerWidget {
             existing: p, price: px),
         title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text(
-          '${p.code} · ${p.shares} 股 · 成本 ${p.cost.toStringAsFixed(2)}'
+          '${p.code} · ${m('${p.shares}')} 股 · 成本 ${m(p.cost.toStringAsFixed(2))}'
           '${px != null ? ' · 現 ${px.toStringAsFixed(2)}' : ''}',
           style: const TextStyle(fontSize: 12, color: AppColors.ink3),
         ),
@@ -118,9 +127,9 @@ class PortfolioPage extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(signed(pnl, 0),
+            Text(m(signed(pnl, 0)),
                 style: kNum.copyWith(color: AppColors.forChange(pnl))),
-            Text('${signed(p.pnlPct(px), 2)}%',
+            Text(m('${signed(p.pnlPct(px), 2)}%'),
                 style: kNum.copyWith(
                     fontSize: 12, color: AppColors.forChange(pnl))),
           ],
@@ -304,7 +313,8 @@ class _AllocationBar extends StatelessWidget {
 // 預估年配息（持股 × 近一年現金股利）
 class _DividendEstimate extends StatelessWidget {
   final List<Position> positions;
-  const _DividendEstimate({required this.positions});
+  final bool hide;
+  const _DividendEstimate({required this.positions, this.hide = false});
   @override
   Widget build(BuildContext context) {
     final tw = positions.where((p) => p.market.isTW).toList();
@@ -325,7 +335,8 @@ class _DividendEstimate extends StatelessWidget {
           children: [
             const Text('預估年配息（依近一年現金股利）',
                 style: TextStyle(color: AppColors.ink3, fontSize: 12)),
-            Text(nf0.format(snap.data), style: kNum.copyWith(color: AppColors.up)),
+            Text(maskable(hide, nf0.format(snap.data)),
+                style: kNum.copyWith(color: AppColors.up)),
           ],
         );
       },
