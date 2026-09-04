@@ -593,3 +593,209 @@ class StatTile extends StatelessWidget {
     );
   }
 }
+
+// ================================================================
+// 券商風元件
+// ================================================================
+
+/// 區塊標題：左側色條 + 標題，右側可放「更多 ›」
+class PanelHeader extends StatelessWidget {
+  final String label;
+  final VoidCallback? onMore;
+  final String moreText;
+  final EdgeInsets padding;
+  const PanelHeader(this.label,
+      {super.key,
+      this.onMore,
+      this.moreText = '更多',
+      this.padding = const EdgeInsets.fromLTRB(12, 12, 12, 8)});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: padding,
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 13,
+            decoration: BoxDecoration(
+              color: AppColors.accent,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(label,
+              style: const TextStyle(
+                  color: AppColors.ink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700)),
+          const Spacer(),
+          if (onMore != null)
+            GestureDetector(
+              onTap: onMore,
+              behavior: HitTestBehavior.opaque,
+              child: Row(children: [
+                Text(moreText,
+                    style:
+                        const TextStyle(fontSize: 12, color: AppColors.ink3)),
+                const Icon(Icons.chevron_right,
+                    size: 15, color: AppColors.ink3),
+              ]),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 3-up 指數格：名稱 / 大數字（漲跌色）/ 漲跌+百分比
+class IndexCell extends StatelessWidget {
+  final String name;
+  final double? value;
+  final num? change;
+  final num? changePct;
+  final VoidCallback? onTap;
+  const IndexCell({
+    super.key,
+    required this.name,
+    required this.value,
+    required this.change,
+    required this.changePct,
+    this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final c = change == null ? AppColors.ink : AppColors.forChange(change!);
+    final arrow = change == null
+        ? ''
+        : change! > 0
+            ? '▲'
+            : change! < 0
+                ? '▼'
+                : '';
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, color: AppColors.ink2)),
+              const SizedBox(height: 3),
+              Text(value?.toStringAsFixed(2) ?? '--',
+                  style: kNum.copyWith(fontSize: 17, color: c)),
+              const SizedBox(height: 2),
+              Text(
+                change == null
+                    ? '--'
+                    : '$arrow${change!.abs().toStringAsFixed(2)}  ${changePct! >= 0 ? '+' : ''}${changePct!.toStringAsFixed(2)}%',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: kNumSm.copyWith(color: c),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 券商列表列：左色條 + 名稱/代號 + 成交 / 漲跌(％) / 成交量 對齊三欄
+class MarketTickerRow extends StatelessWidget {
+  final String name;
+  final String code;
+  final double? price;
+  final num? change;
+  final num? changePct;
+  final String? volumeText;
+  final int? rank;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  const MarketTickerRow({
+    super.key,
+    required this.name,
+    required this.code,
+    required this.price,
+    required this.change,
+    this.changePct,
+    this.volumeText,
+    this.rank,
+    this.onTap,
+    this.onLongPress,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final c = change == null ? AppColors.flat : AppColors.forChange(change!);
+    return InkWell(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
+        child: Row(
+          children: [
+            Container(width: 3, height: 34, color: c),
+            const SizedBox(width: 9),
+            if (rank != null) ...[
+              SizedBox(
+                width: 18,
+                child: Text('$rank',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.ink3)),
+              ),
+              const SizedBox(width: 2),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name.isEmpty ? code : name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 14)),
+                  const SizedBox(height: 1),
+                  Text(code,
+                      style: const TextStyle(
+                          color: AppColors.ink3, fontSize: 11)),
+                ],
+              ),
+            ),
+            SizedBox(
+              width: 74,
+              child: Text(price?.toStringAsFixed(2) ?? '--',
+                  textAlign: TextAlign.right,
+                  style: kNum.copyWith(fontSize: 14, color: c)),
+            ),
+            SizedBox(
+              width: 74,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(change == null ? '--' : signed(change!, 2),
+                      style: kNumSm.copyWith(color: c)),
+                  if (changePct != null)
+                    Text(
+                        '${changePct! >= 0 ? '+' : ''}${changePct!.toStringAsFixed(2)}%',
+                        style: kNumSm.copyWith(color: c)),
+                ],
+              ),
+            ),
+            if (volumeText != null)
+              SizedBox(
+                width: 60,
+                child: Text(volumeText!,
+                    textAlign: TextAlign.right,
+                    style: kNumSm.copyWith(color: AppColors.ink2)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

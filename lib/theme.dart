@@ -49,8 +49,9 @@ ThemeData buildTheme() {
     cardTheme: CardThemeData(
       color: AppColors.surface,
       elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         side: const BorderSide(color: AppColors.border),
       ),
     ),
@@ -68,4 +69,11 @@ ThemeData buildTheme() {
 const kNum = TextStyle(
   fontFeatures: [FontFeature.tabularFigures()],
   fontWeight: FontWeight.w600,
+);
+
+/// 小號等寬數字（券商列表用）
+const kNumSm = TextStyle(
+  fontFeatures: [FontFeature.tabularFigures()],
+  fontWeight: FontWeight.w600,
+  fontSize: 11.5,
 );

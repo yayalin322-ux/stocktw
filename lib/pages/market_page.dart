@@ -27,6 +27,8 @@ class _MarketPageState extends ConsumerState<MarketPage> {
   IndexQuote? _fx;
   Timer? _t;
 
+  static const _stripNames = {'加權指數', '櫃買指數', '那斯達克'};
+
   @override
   void initState() {
     super.initState();
@@ -69,11 +71,21 @@ class _MarketPageState extends ConsumerState<MarketPage> {
                 QuoteDetailPage(symbol: Symbol(code, m), name: name)),
       );
 
+  void _openIndex(IndexQuote q) => Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => IndexDetailPage(ySymbol: q.ySymbol, name: q.name)),
+      );
+
+  IndexQuote? _find(String name) =>
+      _idx.where((e) => e.name == name).firstOrNull;
+
   @override
   Widget build(BuildContext context) {
-    final taiex = _idx.where((e) => e.name == '加權指數').firstOrNull;
+    final taiex = _find('加權指數');
     final groups = <String, List<IndexQuote>>{};
     for (final q in _idx) {
+      if (_stripNames.contains(q.name)) continue;
       groups.putIfAbsent(q.group, () => []).add(q);
     }
 
@@ -107,239 +119,249 @@ class _MarketPageState extends ConsumerState<MarketPage> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 20),
           children: [
-            // 加權指數大卡 + 走勢（點進看歷史）
-            Card(
-              child: InkWell(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => IndexDetailPage(
-                        ySymbol: taiex?.ySymbol ?? '^TWII', name: '加權指數'),
-                  ),
-                ),
-                child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: const [
-                      Text('加權指數',
-                          style:
-                              TextStyle(color: AppColors.ink3, fontSize: 13)),
-                      Spacer(),
-                      Icon(Icons.chevron_right,
-                          size: 18, color: AppColors.ink3),
-                    ]),
-                    const SizedBox(height: 4),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          taiex?.value?.toStringAsFixed(2) ?? '--',
-                          style: kNum.copyWith(
-                            fontSize: 34,
-                            color: taiex?.change == null
-                                ? AppColors.ink
-                                : AppColors.forChange(taiex!.change!),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 5),
-                          child: ChangeText(taiex?.change, taiex?.changePct,
-                              size: 14),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 64,
-                      child: _spark.length > 2
-                          ? Sparkline(_spark,
-                              baseline: taiex?.prevClose ?? double.nan)
-                          : const SizedBox(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            ),
-            // 各國指數（分組）
-            for (final g in groups.entries)
-              Card(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(g.key,
-                            style: const TextStyle(
-                                color: AppColors.ink3,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1)),
-                      ),
-                    ),
-                    for (final q in g.value)
-                      InkWell(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => IndexDetailPage(
-                                ySymbol: q.ySymbol, name: q.name),
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 10),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(q.name),
-                              Row(children: [
-                                Text(q.value?.toStringAsFixed(2) ?? '--',
-                                    style: kNum),
-                                const SizedBox(width: 12),
-                                SizedBox(
-                                  width: 110,
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: ChangeText(q.change, q.changePct,
-                                        size: 12),
-                                  ),
-                                ),
-                                const Icon(Icons.chevron_right,
-                                    size: 16, color: AppColors.ink3),
-                              ]),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            // 匯率
-            if (_fx != null)
-              Card(
-                child: InkWell(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => IndexDetailPage(
-                          ySymbol: 'TWD=X', name: '美元/台幣'),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        const Text('美元 / 台幣'),
-                        const Spacer(),
-                        Text(_fx!.value?.toStringAsFixed(3) ?? '--',
-                            style: kNum),
-                        const SizedBox(width: 12),
-                        ChangeText(_fx!.change, _fx!.changePct, size: 12),
-                        const Icon(Icons.chevron_right,
-                            size: 16, color: AppColors.ink3),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            // 三大法人
-            if (_inst.isNotEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('三大法人買賣超（億元）',
-                          style:
-                              TextStyle(color: AppColors.ink3, fontSize: 13)),
-                      const SizedBox(height: 12),
-                      Builder(builder: (_) {
-                        final mx = _inst
-                            .map((e) => e.netYi.abs())
-                            .fold<double>(1, (a, b) => a > b ? a : b);
-                        return Column(
-                          children: [
-                            for (final f in _inst)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 6),
-                                child: Row(children: [
-                                  SizedBox(
-                                      width: 52,
-                                      child: Text(f.name,
-                                          style:
-                                              const TextStyle(fontSize: 13))),
-                                  Expanded(
-                                      child: DivergingBar(f.netYi, mx)),
-                                  const SizedBox(width: 10),
-                                  SizedBox(
-                                    width: 62,
-                                    child: Text(signed(f.netYi, 1),
-                                        textAlign: TextAlign.right,
-                                        style: kNum.copyWith(
-                                            fontSize: 13,
-                                            color: AppColors.forChange(
-                                                f.netYi))),
-                                  ),
-                                ]),
-                              ),
-                          ],
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ),
-            // 熱門股
-            if (_hot.isNotEmpty)
-              Card(
-                child: Column(
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('成交量前 20',
-                            style: TextStyle(
-                                color: AppColors.ink3, fontSize: 13)),
-                      ),
-                    ),
-                    for (final h in _hot.take(12))
-                      ListTile(
-                        dense: true,
-                        title: Text('${h.name}  ${h.code}',
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w600)),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(h.close?.toStringAsFixed(2) ?? '--',
-                                style: kNum),
-                            const SizedBox(width: 10),
-                            Text(signed(h.change ?? 0, 2),
-                                style: kNum.copyWith(
-                                    fontSize: 12,
-                                    color: AppColors.forChange(
-                                        h.change ?? 0))),
-                          ],
-                        ),
-                        onTap: () => _open(h.code, h.name, Market.tse),
-                      ),
-                  ],
-                ),
-              ),
+            _indexStrip(taiex),
+            for (final g in groups.entries) _groupCard(g.key, g.value),
+            if (_fx != null) _fxCard(),
+            if (_inst.isNotEmpty) _instCard(),
+            if (_hot.isNotEmpty) _hotCard(),
           ],
         ),
       ),
     );
   }
+
+  Widget _indexStrip(IndexQuote? taiex) {
+    final otc = _find('櫃買指數');
+    final nas = _find('那斯達克');
+    return Card(
+      child: Column(
+        children: [
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                IndexCell(
+                  name: '加權指數',
+                  value: taiex?.value,
+                  change: taiex?.change,
+                  changePct: taiex?.changePct,
+                  onTap: taiex == null ? null : () => _openIndex(taiex),
+                ),
+                const _VDiv(),
+                IndexCell(
+                  name: '櫃買指數',
+                  value: otc?.value,
+                  change: otc?.change,
+                  changePct: otc?.changePct,
+                  onTap: otc == null ? null : () => _openIndex(otc),
+                ),
+                const _VDiv(),
+                IndexCell(
+                  name: '那斯達克',
+                  value: nas?.value,
+                  change: nas?.change,
+                  changePct: nas?.changePct,
+                  onTap: nas == null ? null : () => _openIndex(nas),
+                ),
+              ],
+            ),
+          ),
+          if (_spark.length > 2)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+              child: SizedBox(
+                height: 48,
+                child: Sparkline(_spark,
+                    baseline: taiex?.prevClose ?? double.nan),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _groupCard(String group, List<IndexQuote> list) {
+    return Card(
+      child: Column(
+        children: [
+          PanelHeader(group),
+          for (final q in list) ...[
+            const Divider(height: 1),
+            InkWell(
+              onTap: () => _openIndex(q),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 3,
+                      height: 26,
+                      color: q.change == null
+                          ? AppColors.flat
+                          : AppColors.forChange(q.change!),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                        child: Text(q.name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600))),
+                    Text(q.value?.toStringAsFixed(2) ?? '--',
+                        style: kNum.copyWith(
+                            fontSize: 14,
+                            color: q.change == null
+                                ? AppColors.ink
+                                : AppColors.forChange(q.change!))),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 96,
+                      child: Text(
+                        q.change == null
+                            ? '--'
+                            : '${signed(q.change!, 2)}  ${q.changePct! >= 0 ? '+' : ''}${q.changePct!.toStringAsFixed(2)}%',
+                        textAlign: TextAlign.right,
+                        style: kNumSm.copyWith(
+                            color: q.change == null
+                                ? AppColors.ink3
+                                : AppColors.forChange(q.change!)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+
+  Widget _fxCard() {
+    return Card(
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                const IndexDetailPage(ySymbol: 'TWD=X', name: '美元/台幣'),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 13, 12, 13),
+          child: Row(
+            children: [
+              Container(
+                width: 3,
+                height: 22,
+                color: _fx!.change == null
+                    ? AppColors.flat
+                    : AppColors.forChange(_fx!.change!),
+              ),
+              const SizedBox(width: 9),
+              const Expanded(
+                  child: Text('美元 / 台幣',
+                      style: TextStyle(fontWeight: FontWeight.w600))),
+              Text(_fx!.value?.toStringAsFixed(3) ?? '--',
+                  style: kNum.copyWith(fontSize: 14)),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 96,
+                child: Text(
+                  _fx!.change == null
+                      ? '--'
+                      : '${signed(_fx!.change!, 3)}  ${_fx!.changePct! >= 0 ? '+' : ''}${_fx!.changePct!.toStringAsFixed(2)}%',
+                  textAlign: TextAlign.right,
+                  style: kNumSm.copyWith(
+                      color: _fx!.change == null
+                          ? AppColors.ink3
+                          : AppColors.forChange(_fx!.change!)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _instCard() {
+    final mx =
+        _inst.map((e) => e.netYi.abs()).fold<double>(1, (a, b) => a > b ? a : b);
+    return Card(
+      child: Column(
+        children: [
+          const PanelHeader('三大法人買賣超（億元）'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 2, 12, 12),
+            child: Column(
+              children: [
+                for (final f in _inst)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Row(children: [
+                      SizedBox(
+                          width: 52,
+                          child: Text(f.name,
+                              style: const TextStyle(fontSize: 13))),
+                      Expanded(child: DivergingBar(f.netYi, mx)),
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        width: 62,
+                        child: Text(signed(f.netYi, 1),
+                            textAlign: TextAlign.right,
+                            style: kNum.copyWith(
+                                fontSize: 13,
+                                color: AppColors.forChange(f.netYi))),
+                      ),
+                    ]),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hotCard() {
+    String vol(int v) => v >= 10000
+        ? '${(v / 10000).toStringAsFixed(1)}萬'
+        : nf0.format(v);
+    return Card(
+      child: Column(
+        children: [
+          PanelHeader('成交量前 20',
+              onMore: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ScreenerPage()))),
+          for (final (i, h) in _hot.take(15).indexed) ...[
+            const Divider(height: 1),
+            MarketTickerRow(
+              rank: i + 1,
+              name: h.name,
+              code: h.code,
+              price: h.close,
+              change: h.change,
+              changePct: (h.close != null &&
+                      h.change != null &&
+                      (h.close! - h.change!) != 0)
+                  ? h.change! / (h.close! - h.change!) * 100
+                  : null,
+              volumeText: vol(h.volume),
+              onTap: () => _open(h.code, h.name, Market.tse),
+            ),
+          ],
+          const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+}
+
+class _VDiv extends StatelessWidget {
+  const _VDiv();
+  @override
+  Widget build(BuildContext context) =>
+      const VerticalDivider(width: 1, thickness: 1, color: AppColors.border);
 }
