@@ -11,12 +11,17 @@ import 'pages/watchlist_page.dart';
 import 'state.dart';
 import 'theme.dart';
 
-class StockApp extends StatelessWidget {
+class StockApp extends ConsumerWidget {
   const StockApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final light = ref.watch(themeModeProvider);
+    AppColors.setLight(light);
+    // 切換主題時用 key 強制整棵 MaterialApp 重建，確保所有畫面（含已經
+    // 開著的頁面）都套用新的顏色，不會有部分頁面沒跟著換。
     return MaterialApp(
+      key: ValueKey(light),
       title: '台股 Pro',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),

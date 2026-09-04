@@ -72,7 +72,7 @@ class _QrExportPageState extends ConsumerState<QrExportPage> {
                   ),
                 ),
               if (!hasContent)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(bottom: 16),
                   child: Text('請至少勾選一項要分享的資料',
                       style: TextStyle(color: AppColors.ink3)),
@@ -92,7 +92,7 @@ class _QrExportPageState extends ConsumerState<QrExportPage> {
                   ),
                 ),
               const SizedBox(height: 16),
-              const Text('請對方在自選股頁點「掃描 QR 匯入」對準這個畫面',
+              Text('請對方在自選股頁點「掃描 QR 匯入」對準這個畫面',
                   style: TextStyle(fontSize: 12, color: AppColors.ink3)),
             ],
           ),

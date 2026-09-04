@@ -123,7 +123,7 @@ class IntradayChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (prices.length < 2) {
-      return const Center(
+      return Center(
           child: Text('無分時資料（非交易時段）',
               style: TextStyle(color: AppColors.ink3)));
     }
@@ -176,7 +176,7 @@ class IntradayChart extends StatelessWidget {
               '盤前試搓', AppColors.warn, prePrices, preTimes, prevClose),
         );
       }
-      return const Center(
+      return Center(
           child: Text('無分時資料（非交易時段）',
               style: TextStyle(color: AppColors.ink3)));
     }
@@ -217,7 +217,7 @@ class IntradayChart extends StatelessWidget {
               Text('高 ${hi.toStringAsFixed(2)}',
                   style: const TextStyle(fontSize: 11, color: AppColors.up)),
               Text('昨收 ${prevClose.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.ink3)),
+                  style: TextStyle(fontSize: 11, color: AppColors.ink3)),
               Text('低 ${lo.toStringAsFixed(2)}',
                   style: const TextStyle(fontSize: 11, color: AppColors.down)),
             ],
@@ -267,10 +267,10 @@ class IntradayChart extends StatelessWidget {
             children: [
               Text(useTime ? _hm(t0) : '',
                   style:
-                      const TextStyle(fontSize: 10, color: AppColors.ink3)),
+                      TextStyle(fontSize: 10, color: AppColors.ink3)),
               Text(useTime ? _hm(tN) : '',
                   style:
-                      const TextStyle(fontSize: 10, color: AppColors.ink3)),
+                      TextStyle(fontSize: 10, color: AppColors.ink3)),
             ],
           ),
         ),
@@ -339,7 +339,7 @@ class _PrePostSection extends StatelessWidget {
                 style: TextStyle(fontSize: 12, color: c)),
             const Spacer(),
             Text(IntradayChart._hm(times.last),
-                style: const TextStyle(fontSize: 10, color: AppColors.ink3)),
+                style: TextStyle(fontSize: 10, color: AppColors.ink3)),
           ]),
           const SizedBox(height: 8),
           SizedBox(
@@ -349,9 +349,9 @@ class _PrePostSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('高 ${hiP.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 10, color: AppColors.ink3)),
+                  style: TextStyle(fontSize: 10, color: AppColors.ink3)),
               Text('低 ${loP.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 10, color: AppColors.ink3)),
+                  style: TextStyle(fontSize: 10, color: AppColors.ink3)),
             ],
           ),
         ],
@@ -569,7 +569,7 @@ class PriceLineChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (data.length < 2) {
-      return const Center(
+      return Center(
           child: Text('無資料', style: TextStyle(color: AppColors.ink3)));
     }
     final lo = data.reduce((a, b) => a < b ? a : b);
@@ -604,7 +604,7 @@ class PriceLineChart extends StatelessWidget {
               children: [
                 for (final t in xLabels)
                   Text(t,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 10, color: AppColors.ink3)),
               ],
             ),
@@ -691,7 +691,7 @@ class QuoteRow extends StatelessWidget {
                           fontWeight: FontWeight.w700, fontSize: 15)),
                   const SizedBox(height: 2),
                   Text(code,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.ink3, fontSize: 12)),
                 ],
               ),
@@ -729,7 +729,7 @@ class StatTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(color: AppColors.ink3, fontSize: 12)),
+            style: TextStyle(color: AppColors.ink3, fontSize: 12)),
         const SizedBox(height: 4),
         Text(value,
             style: kNum.copyWith(
@@ -770,7 +770,7 @@ class PanelHeader extends StatelessWidget {
           ),
           const SizedBox(width: 7),
           Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.ink,
                   fontSize: 13,
                   fontWeight: FontWeight.w700)),
@@ -782,8 +782,8 @@ class PanelHeader extends StatelessWidget {
               child: Row(children: [
                 Text(moreText,
                     style:
-                        const TextStyle(fontSize: 12, color: AppColors.ink3)),
-                const Icon(Icons.chevron_right,
+                        TextStyle(fontSize: 12, color: AppColors.ink3)),
+                Icon(Icons.chevron_right,
                     size: 15, color: AppColors.ink3),
               ]),
             ),
@@ -830,7 +830,7 @@ class IndexCell extends StatelessWidget {
               Text(name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, color: AppColors.ink2)),
+                  style: TextStyle(fontSize: 11, color: AppColors.ink2)),
               const SizedBox(height: 3),
               Text(value?.toStringAsFixed(2) ?? '--',
                   style: kNum.copyWith(fontSize: 17, color: c)),
@@ -894,7 +894,7 @@ class MarketTickerRow extends StatelessWidget {
               SizedBox(
                 width: 18,
                 child: Text('$rank',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12, color: AppColors.ink3)),
               ),
               const SizedBox(width: 2),
@@ -910,7 +910,7 @@ class MarketTickerRow extends StatelessWidget {
                           fontWeight: FontWeight.w700, fontSize: 14)),
                   const SizedBox(height: 1),
                   Text(code,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.ink3, fontSize: 11)),
                 ],
               ),
@@ -971,7 +971,7 @@ class CompareChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final usable = series.where((s) => s.pct.length > 1).toList();
     if (usable.isEmpty) {
-      return const Center(
+      return Center(
           child: Text('無資料', style: TextStyle(color: AppColors.ink3)));
     }
     final all = [for (final s in usable) ...s.pct, 0.0];
@@ -1124,7 +1124,7 @@ class PreOpenCard extends StatelessWidget {
                 style: TextStyle(fontSize: 13, color: c)),
             const SizedBox(height: 10),
             Text('$clock 試搓・09:00 開盤後開始畫分時走勢',
-                style: const TextStyle(fontSize: 11, color: AppColors.ink3)),
+                style: TextStyle(fontSize: 11, color: AppColors.ink3)),
           ],
         ),
       ),

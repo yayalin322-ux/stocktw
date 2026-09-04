@@ -83,7 +83,7 @@ class _RankListState extends State<_RankList>
           }
           final rows = snap.data ?? [];
           if (rows.isEmpty) {
-            return const Center(
+            return Center(
                 child: Text('查無資料', style: TextStyle(color: AppColors.ink3)));
           }
           final maxAbs = rows
@@ -125,7 +125,7 @@ class _RankListState extends State<_RankList>
                           if (r.price != null)
                             RichText(
                               text: TextSpan(children: [
-                                const TextSpan(
+                                TextSpan(
                                     text: '收 ',
                                     style: TextStyle(
                                         fontSize: 11,
@@ -137,7 +137,7 @@ class _RankListState extends State<_RankList>
                                       color: AppColors.ink,
                                       fontWeight: FontWeight.w700),
                                 ),
-                                const TextSpan(
+                                TextSpan(
                                     text: ' 元',
                                     style: TextStyle(
                                         fontSize: 11,

@@ -97,7 +97,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (_, i) {
                     if (i >= results.length) {
-                      return const ListTile(
+                      return ListTile(
                         dense: true,
                         title: Text('搜尋美股中…',
                             style: TextStyle(color: AppColors.ink3)),
@@ -122,7 +122,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           _badge('ETF', AppColors.up),
                       ]),
                       subtitle: Text('${r.code} · ${r.market.label}',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 12, color: AppColors.ink3)),
                       trailing: widget.pick
                           ? const Icon(Icons.add)
@@ -174,7 +174,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   Widget _emptyMsg() => Center(
         child: Text(_searchingUS ? '搜尋中…' : '查無結果',
-            style: const TextStyle(color: AppColors.ink3)),
+            style: TextStyle(color: AppColors.ink3)),
       );
 
   static const _hotEtfList = [
@@ -197,11 +197,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     return ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text('輸入台股代號/國字，或美股代號/公司名',
+          Text('輸入台股代號/國字，或美股代號/公司名',
               style: TextStyle(color: AppColors.ink3)),
           if (recent.isNotEmpty) ...[
             const SizedBox(height: 20),
-            const Text('最近看過',
+            Text('最近看過',
                 style: TextStyle(
                     color: AppColors.ink3,
                     fontSize: 12,
@@ -233,7 +233,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
           ],
           const SizedBox(height: 20),
-          const Text('熱門 ETF',
+          Text('熱門 ETF',
               style: TextStyle(
                   color: AppColors.ink3,
                   fontSize: 12,

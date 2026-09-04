@@ -86,7 +86,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
                   Row(
                     children: [
                       Text('成交值前 $_total 大個股・依產業分組',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 12, color: AppColors.ink3)),
                       const Spacer(),
                       _dot(AppColors.up, '$up 漲'),
@@ -99,7 +99,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
                   const SizedBox(height: 6),
                   for (final e in _groups.entries) _groupSection(e.key, e.value),
                   const SizedBox(height: 8),
-                  const Text('格子顏色深淺代表漲跌幅大小；族群跟個股都依成交值排序',
+                  Text('格子顏色深淺代表漲跌幅大小；族群跟個股都依成交值排序',
                       style: TextStyle(fontSize: 11, color: AppColors.ink3)),
                 ],
               ),
@@ -126,7 +126,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
                     fontSize: 13, fontWeight: FontWeight.w700)),
             const SizedBox(width: 6),
             Text('${cells.length} 檔',
-                style: const TextStyle(fontSize: 11, color: AppColors.ink3)),
+                style: TextStyle(fontSize: 11, color: AppColors.ink3)),
           ]),
           const SizedBox(height: 6),
           GridView.builder(
@@ -193,6 +193,6 @@ class _HeatmapPageState extends State<HeatmapPage> {
             height: 8,
             decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
         const SizedBox(width: 4),
-        Text(t, style: const TextStyle(fontSize: 11, color: AppColors.ink3)),
+        Text(t, style: TextStyle(fontSize: 11, color: AppColors.ink3)),
       ]);
 }

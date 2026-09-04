@@ -27,7 +27,7 @@ void showTerm(BuildContext context, String key) {
           ]),
           const SizedBox(height: 12),
           Text(text,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15, height: 1.7, color: AppColors.ink2)),
         ],
       ),
@@ -43,7 +43,7 @@ class TermInfo extends StatelessWidget {
   Widget build(BuildContext context) => InkWell(
         onTap: () => showTerm(context, term),
         borderRadius: BorderRadius.circular(20),
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.all(3),
           child: Icon(Icons.info_outline, size: 15, color: AppColors.ink3),
         ),
@@ -86,7 +86,7 @@ class _GlossaryPageState extends State<GlossaryPage> {
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(e.value,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13, height: 1.6, color: AppColors.ink2)),
             ),
           );

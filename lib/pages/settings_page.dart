@@ -11,10 +11,21 @@ class SettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final light = ref.watch(themeModeProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('設定')),
       body: ListView(
         children: [
+          const _Header('外觀'),
+          SwitchListTile(
+            secondary: Icon(
+                light ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+            title: const Text('淺色模式'),
+            subtitle: const Text('關閉則是預設的深色主題'),
+            value: light,
+            onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
+          ),
+          const Divider(),
           const _Header('新手'),
           ListTile(
             leading: const Icon(Icons.menu_book_outlined),
@@ -97,7 +108,7 @@ class SettingsPage extends ConsumerWidget {
             applicationVersion: '1.0.0',
             child: Text('關於'),
           ),
-          const Padding(
+          Padding(
             padding: EdgeInsets.all(16),
             child: Text(
               '本 App 僅供資訊參考，非投資建議。行情資料可能延遲。',
@@ -117,7 +128,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
         child: Text(text,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.ink3,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,

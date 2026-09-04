@@ -19,6 +19,7 @@ import '../etf_holdings.dart';
 import '../glossary.dart';
 import 'alerts_page.dart';
 import 'compare_page.dart';
+import 'dca_page.dart';
 import 'ex_calendar_page.dart';
 import 'glossary_page.dart';
 import 'portfolio_page.dart';
@@ -226,7 +227,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
           Text(name),
           const SizedBox(width: 8),
           Text(widget.symbol.code,
-              style: const TextStyle(color: AppColors.ink3, fontSize: 13)),
+              style: TextStyle(color: AppColors.ink3, fontSize: 13)),
         ]),
         actions: [
           IconButton(
@@ -273,7 +274,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
           ),
           if (_period != '分時') ...[
             _indicatorBar(),
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(left: 16, top: 2),
               child: Text('雙指縮放 K 線 · 長按看每根詳細 · 右上可全螢幕',
                   style: TextStyle(fontSize: 10, color: AppColors.ink3)),
@@ -399,14 +400,14 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
             borderRadius: BorderRadius.circular(6),
             border: Border.all(color: AppColors.border)),
         child: Text(t,
-            style: const TextStyle(fontSize: 12, color: AppColors.ink2)),
+            style: TextStyle(fontSize: 12, color: AppColors.ink2)),
       );
 
   Widget _kv(String k, double? v, {int dp = 2}) => RichText(
         text: TextSpan(children: [
           TextSpan(
               text: '$k ',
-              style: const TextStyle(color: AppColors.ink3, fontSize: 12)),
+              style: TextStyle(color: AppColors.ink3, fontSize: 12)),
           TextSpan(
             text: v == null ? '--' : v.toStringAsFixed(dp),
             style: kNum.copyWith(fontSize: 13, color: AppColors.ink),
@@ -474,7 +475,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
       return Center(
         child: Text('K 線載入失敗\n${_chartErr ?? ''}',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.ink3)),
+            style: TextStyle(color: AppColors.ink3)),
       );
     }
     return KChartWidget(
@@ -496,7 +497,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
         child: Text(
           '開 ${e.open.toStringAsFixed(2)}  高 ${e.high.toStringAsFixed(2)}\n'
           '低 ${e.low.toStringAsFixed(2)}  收 ${e.close.toStringAsFixed(2)}',
-          style: const TextStyle(fontSize: 11, color: AppColors.ink),
+          style: TextStyle(fontSize: 11, color: AppColors.ink),
         ),
       ),
     );
@@ -534,7 +535,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
           Expanded(
             child: Text(active.isEmpty ? '未開啟指標' : active,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.ink3, fontSize: 12)),
+                style: TextStyle(color: AppColors.ink3, fontSize: 12)),
           ),
         ],
       ),
@@ -597,7 +598,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
                   child: ListView(
                     padding: const EdgeInsets.only(bottom: 20),
                     children: [
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
                         child: Text('主圖指標',
                             style: TextStyle(
@@ -610,7 +611,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
                             () => _mainSel.contains(i)
                                 ? _mainSel.remove(i)
                                 : _mainSel.add(i)),
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
                         child: Text('副圖指標（圖表下方）',
                             style: TextStyle(
@@ -636,7 +637,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
 
   Widget _orderBook(Quote? q) {
     if (q == null || (q.bids.isEmpty && q.asks.isEmpty)) {
-      return const Center(
+      return Center(
           child: Text('無五檔資料（非交易時段）',
               style: TextStyle(color: AppColors.ink3)));
     }
@@ -676,7 +677,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
 
     return ListView(
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(14, 10, 14, 4),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('買量 / 買價', style: TextStyle(color: AppColors.ink3, fontSize: 12)),
@@ -834,7 +835,7 @@ class _DividendTab extends StatelessWidget {
                 ),
               const SizedBox(height: 8),
               Text('備註：發放日通常在除息後約 1 個月，實際以公司公告為準。',
-                  style: const TextStyle(fontSize: 11, color: AppColors.ink3)),
+                  style: TextStyle(fontSize: 11, color: AppColors.ink3)),
               const SizedBox(height: 20),
             ],
 
@@ -852,7 +853,7 @@ class _DividendTab extends StatelessWidget {
                     SizedBox(
                         width: 44,
                         child: Text('${y.year}',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 12, color: AppColors.ink3))),
                     Expanded(
                       child: LayoutBuilder(builder: (_, cns) {
@@ -891,7 +892,7 @@ class _DividendTab extends StatelessWidget {
               SizedBox(width: 4),
               TermInfo('股東會紀念品'),
             ]),
-            const Text(
+            Text(
               '需在「停止過戶日」前持有並圈存，才有領取資格。'
               '實際品項、發放地點與時間依各公司股務公告為準，'
               '開放資料未提供，可至公司或股務代理（如群益、元大、中信）網站查詢。',
@@ -923,7 +924,7 @@ class _HoldingsTab extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         Text('這裡收錄前 ${hs.length} 大成分股（權重近似，$kEtfAsOf；每季調整，以投信公告為準）',
-            style: const TextStyle(fontSize: 11, color: AppColors.ink3)),
+            style: TextStyle(fontSize: 11, color: AppColors.ink3)),
         const SizedBox(height: 6),
         InkWell(
           onTap: () => launchUrl(
@@ -956,7 +957,7 @@ class _HoldingsTab extends StatelessWidget {
                 SizedBox(
                     width: 56,
                     child: Text(h.code,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12, color: AppColors.ink3))),
                 SizedBox(
                   width: 92,
@@ -1089,7 +1090,7 @@ class _NewsTab extends StatelessWidget {
               title: Text(n.title, style: const TextStyle(fontSize: 14)),
               subtitle: Text(
                 '${n.source}${n.published != null ? ' · ${fmt.format(n.published!.toLocal())}' : ''}',
-                style: const TextStyle(fontSize: 11, color: AppColors.ink3),
+                style: TextStyle(fontSize: 11, color: AppColors.ink3),
               ),
               onTap: () => launchUrl(Uri.parse(n.url),
                   mode: LaunchMode.externalApplication),
@@ -1108,7 +1109,7 @@ class _H extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(t,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.ink3,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -1119,7 +1120,7 @@ class _H extends StatelessWidget {
 class _Empty extends StatelessWidget {
   const _Empty();
   @override
-  Widget build(BuildContext context) => const Padding(
+  Widget build(BuildContext context) => Padding(
         padding: EdgeInsets.only(top: 30),
         child: Center(
             child: Text('查無資料', style: TextStyle(color: AppColors.ink3))),
@@ -1194,16 +1195,16 @@ class _KChartFullscreenState extends State<_KChartFullscreen> {
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.close, color: AppColors.ink2),
+                  icon: Icon(Icons.close, color: AppColors.ink2),
                   onPressed: () => Navigator.pop(context),
                 ),
                 Expanded(
                   child: Text(widget.title,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.ink, fontWeight: FontWeight.w600)),
                 ),
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(right: 14),
                   child: Text('雙指縮放 · 長按看詳細',
                       style: TextStyle(fontSize: 11, color: AppColors.ink3)),
@@ -1226,7 +1227,7 @@ class _KChartFullscreenState extends State<_KChartFullscreen> {
                   child: Text(
                     '開 ${e.open.toStringAsFixed(2)}  高 ${e.high.toStringAsFixed(2)}\n'
                     '低 ${e.low.toStringAsFixed(2)}  收 ${e.close.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 11, color: AppColors.ink),
+                    style: TextStyle(fontSize: 11, color: AppColors.ink),
                   ),
                 ),
               ),
@@ -1267,7 +1268,7 @@ class _NotesTabState extends ConsumerState<_NotesTab> {
         children: [
           Row(
             children: [
-              const Text('個人備忘錄',
+              Text('個人備忘錄',
                   style: TextStyle(
                       color: AppColors.ink2, fontWeight: FontWeight.w600)),
               const Spacer(),
@@ -1275,7 +1276,7 @@ class _NotesTabState extends ConsumerState<_NotesTab> {
                 valueListenable: _c,
                 builder: (_, v, child) => Text('${v.text.length}/200',
                     style:
-                        const TextStyle(fontSize: 11, color: AppColors.ink3)),
+                        TextStyle(fontSize: 11, color: AppColors.ink3)),
               ),
             ],
           ),
@@ -1289,8 +1290,8 @@ class _NotesTabState extends ConsumerState<_NotesTab> {
               textAlignVertical: TextAlignVertical.top,
               onChanged: (t) =>
                   ref.read(notesProvider.notifier).set(widget.id, t),
-              style: const TextStyle(color: AppColors.ink, fontSize: 14),
-              decoration: const InputDecoration(
+              style: TextStyle(color: AppColors.ink, fontSize: 14),
+              decoration: InputDecoration(
                 hintText: '記錄買賣理由、目標價、觀察重點…\n只存在這支手機，不會上傳。',
                 hintStyle: TextStyle(color: AppColors.ink3, fontSize: 13),
                 border: OutlineInputBorder(),
@@ -1343,9 +1344,21 @@ class _RelatedTab extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 22),
+        const _H('定期定額試算'),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.savings_outlined, size: 18),
+          label: const Text('用歷史股價回推投入報酬'),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DcaPage(symbol: symbol, name: name),
+            ),
+          ),
+        ),
+        const SizedBox(height: 22),
         const _H('相關 ETF（本檔被以下 ETF 持有）'),
         if (holders.isEmpty)
-          const Text('目前收錄的熱門 ETF 中沒有找到',
+          Text('目前收錄的熱門 ETF 中沒有找到',
               style: TextStyle(fontSize: 13, color: AppColors.ink3))
         else
           Wrap(
@@ -1371,7 +1384,7 @@ class _RelatedTab extends StatelessWidget {
         const _H('相關期貨'),
         Text(
           hasFutures ? '本檔有掛牌股票期貨（台灣期交所）' : '本檔目前查無掛牌的股票期貨',
-          style: const TextStyle(fontSize: 13, color: AppColors.ink2),
+          style: TextStyle(fontSize: 13, color: AppColors.ink2),
         ),
         if (hasFutures) ...[
           const SizedBox(height: 6),

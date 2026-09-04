@@ -26,7 +26,7 @@ class AlertsPage extends ConsumerWidget {
         child: const Icon(Icons.add),
       ),
       body: alerts.isEmpty
-          ? const Center(
+          ? Center(
               child: Text('尚無提醒，點右下 + 新增',
                   style: TextStyle(color: AppColors.ink3)))
           : ListView.separated(
@@ -34,8 +34,10 @@ class AlertsPage extends ConsumerWidget {
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (_, i) {
                 final a = alerts[i];
+                final isMa = a.kind == 'ma_cross';
                 final px = quotes[Symbol(a.code, a.market).id]?.price;
-                final c = a.above ? AppColors.up : AppColors.down;
+                final up = isMa ? (a.crossUp ?? true) : a.above;
+                final c = up ? AppColors.up : AppColors.down;
                 return Dismissible(
                   key: ValueKey(a.id),
                   direction: DismissDirection.endToStart,
@@ -50,18 +52,18 @@ class AlertsPage extends ConsumerWidget {
                     leading: Icon(
                       a.triggered
                           ? Icons.check_circle
-                          : (a.above
-                              ? Icons.trending_up
-                              : Icons.trending_down),
+                          : (up ? Icons.trending_up : Icons.trending_down),
                       color: a.triggered ? AppColors.ink3 : c,
                     ),
                     title: Text('${a.name}  ${a.code}',
                         style: const TextStyle(fontWeight: FontWeight.w700)),
                     subtitle: Text(
-                      '${a.above ? '漲到' : '跌到'} ${a.target.toStringAsFixed(2)}'
-                      '${px != null ? '   現價 ${px.toStringAsFixed(2)}' : ''}'
-                      '${a.triggered ? '   ✓ 已觸發' : ''}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+                      (isMa
+                              ? '${up ? '站上' : '跌破'} MA${a.maPeriod ?? 20}'
+                              : '${a.above ? '漲到' : '跌到'} ${a.target.toStringAsFixed(2)}') +
+                          (px != null ? '   現價 ${px.toStringAsFixed(2)}' : '') +
+                          (a.triggered ? '   ✓ 已觸發' : ''),
+                      style: TextStyle(fontSize: 12, color: AppColors.ink3),
                     ),
                     trailing: a.triggered
                         ? TextButton(
@@ -76,6 +78,9 @@ class AlertsPage extends ConsumerWidget {
                                       name: x.name,
                                       target: x.target,
                                       above: x.above,
+                                      kind: x.kind,
+                                      maPeriod: x.maPeriod,
+                                      crossUp: x.crossUp,
                                     )
                                   else
                                     x
@@ -102,6 +107,9 @@ Future<void> showAddAlert(
 }) {
   final ctrl = TextEditingController(text: price?.toStringAsFixed(2) ?? '');
   bool above = true;
+  String kind = 'price'; // price | ma_cross
+  int maPeriod = 20;
+  bool crossUp = true;
 
   return showModalBottomSheet(
     context: context,
@@ -121,35 +129,88 @@ Future<void> showAddAlert(
                 style:
                     const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 14),
-            SegmentedButton<bool>(
+            SegmentedButton<String>(
               segments: const [
-                ButtonSegment(value: true, label: Text('漲到'), icon: Icon(Icons.arrow_upward)),
-                ButtonSegment(value: false, label: Text('跌到'), icon: Icon(Icons.arrow_downward)),
+                ButtonSegment(value: 'price', label: Text('價格')),
+                ButtonSegment(value: 'ma_cross', label: Text('技術面（均線）')),
               ],
-              selected: {above},
-              onSelectionChanged: (v) => setSt(() => above = v.first),
+              selected: {kind},
+              onSelectionChanged: (v) => setSt(() => kind = v.first),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                  labelText: '目標價', border: OutlineInputBorder()),
-            ),
+            const SizedBox(height: 14),
+            if (kind == 'price') ...[
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                      value: true, label: Text('漲到'), icon: Icon(Icons.arrow_upward)),
+                  ButtonSegment(
+                      value: false, label: Text('跌到'), icon: Icon(Icons.arrow_downward)),
+                ],
+                selected: {above},
+                onSelectionChanged: (v) => setSt(() => above = v.first),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: '目標價', border: OutlineInputBorder()),
+              ),
+            ] else ...[
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                      value: true, label: Text('站上'), icon: Icon(Icons.arrow_upward)),
+                  ButtonSegment(
+                      value: false, label: Text('跌破'), icon: Icon(Icons.arrow_downward)),
+                ],
+                selected: {crossUp},
+                onSelectionChanged: (v) => setSt(() => crossUp = v.first),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final p in [5, 10, 20, 60])
+                    ChoiceChip(
+                      label: Text('MA$p'),
+                      selected: maPeriod == p,
+                      onSelected: (_) => setSt(() => maPeriod = p),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text('每天收盤後對照日K，第一次${crossUp ? "站上" : "跌破"} MA$maPeriod 時通知，跟盤中即時價無關',
+                  style: TextStyle(fontSize: 11, color: AppColors.ink3)),
+            ],
             const SizedBox(height: 16),
             FilledButton(
               onPressed: () {
-                final t = double.tryParse(ctrl.text.trim()) ?? 0;
-                if (t <= 0) return;
-                ref.read(alertsProvider.notifier).add(PriceAlert(
-                      id: '${s.id}:${DateTime.now().millisecondsSinceEpoch}',
-                      code: s.code,
-                      market: s.market,
-                      name: name,
-                      target: t,
-                      above: above,
-                    ));
+                if (kind == 'price') {
+                  final t = double.tryParse(ctrl.text.trim()) ?? 0;
+                  if (t <= 0) return;
+                  ref.read(alertsProvider.notifier).add(PriceAlert(
+                        id: '${s.id}:${DateTime.now().millisecondsSinceEpoch}',
+                        code: s.code,
+                        market: s.market,
+                        name: name,
+                        target: t,
+                        above: above,
+                      ));
+                } else {
+                  ref.read(alertsProvider.notifier).add(PriceAlert(
+                        id: '${s.id}:${DateTime.now().millisecondsSinceEpoch}',
+                        code: s.code,
+                        market: s.market,
+                        name: name,
+                        target: 0,
+                        above: crossUp,
+                        kind: 'ma_cross',
+                        maPeriod: maPeriod,
+                        crossUp: crossUp,
+                      ));
+                }
                 Navigator.pop(ctx);
               },
               child: const Text('建立提醒'),

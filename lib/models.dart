@@ -196,6 +196,9 @@ class PriceAlert {
   final double target;
   final bool above; // true: 漲到 / false: 跌到
   bool triggered;
+  final String kind; // 'price'（預設）或 'ma_cross'
+  final int? maPeriod; // kind=ma_cross 時：均線天數（5/10/20/60）
+  final bool? crossUp; // kind=ma_cross 時：true=站上、false=跌破
   PriceAlert({
     required this.id,
     required this.code,
@@ -204,6 +207,9 @@ class PriceAlert {
     required this.target,
     required this.above,
     this.triggered = false,
+    this.kind = 'price',
+    this.maPeriod,
+    this.crossUp,
   });
 
   Map<String, dynamic> toJson() => {
@@ -214,15 +220,21 @@ class PriceAlert {
         'target': target,
         'above': above,
         'triggered': triggered,
+        'kind': kind,
+        if (maPeriod != null) 'maPeriod': maPeriod,
+        if (crossUp != null) 'crossUp': crossUp,
       };
   factory PriceAlert.fromJson(Map<String, dynamic> j) => PriceAlert(
         id: j['id'],
         code: j['code'],
         market: marketFromName(j['market']),
         name: j['name'] ?? j['code'],
-        target: (j['target'] as num).toDouble(),
-        above: j['above'],
+        target: (j['target'] as num?)?.toDouble() ?? 0,
+        above: j['above'] ?? true,
         triggered: j['triggered'] ?? false,
+        kind: j['kind'] ?? 'price',
+        maPeriod: j['maPeriod'] as int?,
+        crossUp: j['crossUp'] as bool?,
       );
 }
 

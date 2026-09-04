@@ -6,8 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase/push.dart';
 import 'models.dart';
+import 'services/candle_service.dart';
 import 'services/notifications.dart';
 import 'services/quote_service.dart';
+import 'theme.dart';
 
 /// 於 main() override
 final prefsProvider = Provider<SharedPreferences>((_) {
@@ -300,9 +302,14 @@ final portfolioProvider =
 // 到價提醒
 // ------------------------------------------------------------------
 class AlertsNotifier extends StateNotifier<List<PriceAlert>> {
-  AlertsNotifier(this._prefs) : super(_load(_prefs));
+  AlertsNotifier(this._prefs) : super(_load(_prefs)) {
+    // 技術面提醒要抓日K算均線，比對價格重很多，5 分鐘查一次就夠
+    _maTimer = Timer.periodic(const Duration(minutes: 5), (_) => _checkMaCross());
+    _checkMaCross();
+  }
   final SharedPreferences _prefs;
   static const _key = 'alerts';
+  Timer? _maTimer;
 
   static List<PriceAlert> _load(SharedPreferences p) {
     final raw = p.getString(_key);
@@ -330,6 +337,55 @@ class AlertsNotifier extends StateNotifier<List<PriceAlert>> {
   void update(List<PriceAlert> next) {
     state = next;
     save();
+  }
+
+  /// App 開著時，定期抓日K檢查技術面提醒（站上/跌破均線）。
+  /// App 關閉時的檢查由 GitHub Actions 的 check-alerts 腳本負責。
+  Future<void> _checkMaCross() async {
+    final targets = state.where((a) => !a.triggered && a.kind == 'ma_cross').toList();
+    if (targets.isEmpty) return;
+    var changed = false;
+    for (final a in targets) {
+      final period = a.maPeriod ?? 20;
+      try {
+        final candles = await candleService.fetch(Symbol(a.code, a.market),
+            range: '3mo', interval: '1d');
+        if (candles.length < period + 2) continue;
+        final closes = candles.map((c) => c.close).toList();
+        final n = closes.length;
+        double sma(int idx) {
+          var sum = 0.0;
+          for (var i = idx - period + 1; i <= idx; i++) {
+            sum += closes[i];
+          }
+          return sum / period;
+        }
+
+        final maPrev = sma(n - 2), maNow = sma(n - 1);
+        final prevClose = closes[n - 2], nowClose = closes[n - 1];
+        final crossUp = a.crossUp ?? true;
+        final hit = crossUp
+            ? (prevClose < maPrev && nowClose >= maNow)
+            : (prevClose > maPrev && nowClose <= maNow);
+        if (hit) {
+          a.triggered = true;
+          changed = true;
+          notify(
+            '${a.name} ${a.code} 技術面提醒',
+            '${crossUp ? "站上" : "跌破"} MA$period（現價 ${nowClose.toStringAsFixed(2)}）',
+          );
+        }
+      } catch (_) {
+        // 靜默：下一輪再試
+      }
+    }
+    if (changed) save();
+  }
+
+  @override
+  void dispose() {
+    _maTimer?.cancel();
+    super.dispose();
   }
 }
 
@@ -405,7 +461,7 @@ class QuotesNotifier extends StateNotifier<Map<String, Quote>> {
     final next = <PriceAlert>[];
     for (final a in alerts) {
       final px = state[Symbol(a.code, a.market).id]?.price;
-      if (!a.triggered && px != null) {
+      if (a.kind == 'price' && !a.triggered && px != null) {
         final hit = a.above ? px >= a.target : px <= a.target;
         if (hit) {
           a.triggered = true;
@@ -535,3 +591,25 @@ final hideAmountsProvider =
 
 /// 依隱私開關決定要顯示原字串還是遮住
 String maskable(bool hide, String text) => hide ? '••••••' : text;
+
+// ------------------------------------------------------------------
+// 淺色／深色主題（記住上次選擇）
+// ------------------------------------------------------------------
+class ThemeModeNotifier extends StateNotifier<bool> {
+  ThemeModeNotifier(this._prefs) : super(_prefs.getBool(_key) ?? false) {
+    AppColors.setLight(state);
+  }
+  final SharedPreferences _prefs;
+  static const _key = 'themeLight';
+
+  void toggle() {
+    state = !state;
+    AppColors.setLight(state);
+    _prefs.setBool(_key, state);
+  }
+}
+
+/// true = 淺色
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, bool>((ref) {
+  return ThemeModeNotifier(ref.watch(prefsProvider));
+});

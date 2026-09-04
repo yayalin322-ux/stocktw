@@ -104,12 +104,12 @@ class _ExCalendarPageState extends State<ExCalendarPage> {
                     child: Text(
                       '${_selected.year}/${_selected.month}/${_selected.day}'
                       '　${events.isEmpty ? "無除權息" : "${events.length} 檔"}',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.ink3, fontSize: 13),
                     ),
                   ),
                   if (events.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
                       child: Center(
                           child: Text('這天沒有除權息',
@@ -123,7 +123,7 @@ class _ExCalendarPageState extends State<ExCalendarPage> {
                           r.kind == '權'
                               ? '除權（配股）'
                               : '除息 · 現金 ${r.cash.toStringAsFixed(2)} 元',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 12, color: AppColors.ink3),
                         ),
                         trailing: IconButton(
@@ -190,7 +190,7 @@ class _ExCalendarPageState extends State<ExCalendarPage> {
     for (final w in ['日', '一', '二', '三', '四', '五', '六']) {
       cells.add(Center(
           child: Text(w,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 12, color: AppColors.ink3))));
     }
     for (var i = 0; i < firstWeekday; i++) {

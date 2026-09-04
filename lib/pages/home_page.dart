@@ -9,6 +9,7 @@ import '../services/market_service.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'dca_page.dart';
 import 'ex_calendar_page.dart';
 import 'glossary_page.dart';
 import 'heatmap_page.dart';
@@ -180,12 +181,13 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   // ---------- 捷徑 ----------
   Widget _quickCard() {
-    Widget item(IconData ic, String label, VoidCallback tap) => Expanded(
-          child: InkWell(
-            onTap: tap,
-            borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
+    Widget item(IconData ic, String label, VoidCallback tap) => InkWell(
+          onTap: tap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            child: SizedBox(
+              width: 60,
               child: Column(children: [
                 Container(
                   width: 40,
@@ -197,7 +199,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                   child: Icon(ic, color: AppColors.accent, size: 21),
                 ),
                 const SizedBox(height: 6),
-                Text(label, style: const TextStyle(fontSize: 11.5)),
+                Text(label,
+                    style: const TextStyle(fontSize: 11.5),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
               ]),
             ),
           ),
@@ -205,17 +210,22 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Row(children: [
-          item(Icons.insights, '行情', () => _goTab(1)),
-          item(Icons.filter_list, '選股', () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const ScreenerPage()))),
-          item(Icons.event_outlined, '除權息', () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const ExCalendarPage()))),
-          item(Icons.menu_book_outlined, '名詞', () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const GlossaryPage()))),
-          item(Icons.grid_view_rounded, '熱力圖', () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const HeatmapPage()))),
-        ]),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: [
+            item(Icons.insights, '行情', () => _goTab(1)),
+            item(Icons.filter_list, '選股', () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const ScreenerPage()))),
+            item(Icons.event_outlined, '除權息', () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const ExCalendarPage()))),
+            item(Icons.savings_outlined, '定期定額', () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const DcaPage()))),
+            item(Icons.grid_view_rounded, '熱力圖', () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const HeatmapPage()))),
+            item(Icons.menu_book_outlined, '名詞', () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const GlossaryPage()))),
+          ]),
+        ),
       ),
     );
   }
@@ -235,7 +245,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('未實現損益',
+                    Text('未實現損益',
                         style:
                             TextStyle(fontSize: 11, color: AppColors.ink3)),
                     const SizedBox(height: 2),
@@ -248,7 +258,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text('總市值',
+                    Text('總市值',
                         style:
                             TextStyle(fontSize: 11, color: AppColors.ink3)),
                     const SizedBox(height: 2),
@@ -271,7 +281,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         children: [
           PanelHeader('我的自選', onMore: () => _goTab(2)),
           if (watch.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(12, 0, 12, 14),
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -318,7 +328,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: alerts.isEmpty
-                  ? const Text('尚無提醒',
+                  ? Text('尚無提醒',
                       style: TextStyle(color: AppColors.ink3, fontSize: 13))
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,7 +341,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             child: Text(
                               '${a.name} ${a.above ? "漲到" : "跌到"} ${a.target.toStringAsFixed(2)}'
                               '${quotes[Symbol(a.code, a.market).id]?.price != null ? "（現 ${quotes[Symbol(a.code, a.market).id]!.price!.toStringAsFixed(2)}）" : ""}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 12, color: AppColors.ink2),
                             ),
                           ),
@@ -361,7 +371,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   Container(
                     width: 4,
                     height: 4,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                         color: AppColors.ink3, shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 9),
@@ -386,5 +396,5 @@ class _VDiv extends StatelessWidget {
   const _VDiv();
   @override
   Widget build(BuildContext context) =>
-      const VerticalDivider(width: 1, thickness: 1, color: AppColors.border);
+      VerticalDivider(width: 1, thickness: 1, color: AppColors.border);
 }

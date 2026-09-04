@@ -176,7 +176,7 @@ class WatchlistPage extends ConsumerWidget {
           builder: (c, setSheet) => Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
                 child: Align(
                   alignment: Alignment.centerLeft,
@@ -200,7 +200,7 @@ class WatchlistPage extends ConsumerWidget {
                   title: Text(g),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                     Text('${wl.countOf(g)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.ink3, fontSize: 12)),
                     PopupMenuButton<String>(
                       icon: const Icon(Icons.more_vert, size: 18),
@@ -265,7 +265,7 @@ class WatchlistPage extends ConsumerWidget {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text('$name  移動到…',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.ink2, fontWeight: FontWeight.w700)),
               ),
             ),
@@ -328,7 +328,7 @@ class _Empty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('這個群組還沒有股票',
+            Text('這個群組還沒有股票',
                 style: TextStyle(color: AppColors.ink3)),
             const SizedBox(height: 10),
             OutlinedButton.icon(

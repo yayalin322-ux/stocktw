@@ -56,7 +56,7 @@ class PortfolioPage extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('未實現損益',
+                  Text('未實現損益',
                       style: TextStyle(color: AppColors.ink3, fontSize: 12)),
                   const SizedBox(height: 4),
                   Text(
@@ -86,7 +86,7 @@ class PortfolioPage extends ConsumerWidget {
             ),
           ),
           if (positions.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 60),
               child: Center(
                   child: Text('尚無持倉，點右下 + 新增',
@@ -121,7 +121,7 @@ class PortfolioPage extends ConsumerWidget {
         subtitle: Text(
           '${p.code} · ${m('${p.shares}')} 股 · 成本 ${m(p.cost.toStringAsFixed(2))}'
           '${px != null ? ' · 現 ${px.toStringAsFixed(2)}' : ''}',
-          style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+          style: TextStyle(fontSize: 12, color: AppColors.ink3),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -277,7 +277,7 @@ class _AllocationBar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('配置', style: TextStyle(color: AppColors.ink3, fontSize: 12)),
+        Text('配置', style: TextStyle(color: AppColors.ink3, fontSize: 12)),
         const SizedBox(height: 6),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
@@ -301,7 +301,7 @@ class _AllocationBar extends StatelessWidget {
                 Container(width: 8, height: 8, color: r.$3),
                 const SizedBox(width: 4),
                 Text('${r.$1} ${(r.$2 / total * 100).toStringAsFixed(0)}%',
-                    style: const TextStyle(fontSize: 11, color: AppColors.ink2)),
+                    style: TextStyle(fontSize: 11, color: AppColors.ink2)),
               ]),
           ],
         ),
@@ -333,7 +333,7 @@ class _DividendEstimate extends StatelessWidget {
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('預估年配息（依近一年現金股利）',
+            Text('預估年配息（依近一年現金股利）',
                 style: TextStyle(color: AppColors.ink3, fontSize: 12)),
             Text(maskable(hide, nf0.format(snap.data)),
                 style: kNum.copyWith(color: AppColors.up)),

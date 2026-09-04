@@ -133,7 +133,7 @@ class _ComparePageState extends State<ComparePage> {
                   : CompareChart(_series),
             ),
           ),
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(bottom: 16),
             child: Text('以區間第一天收盤為 0% 基準比較漲跌幅',
                 style: TextStyle(fontSize: 11, color: AppColors.ink3)),

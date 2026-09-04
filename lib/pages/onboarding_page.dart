@@ -83,7 +83,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         const SizedBox(height: 16),
                         Text(s.body,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 15,
                                 height: 1.8,
                                 color: AppColors.ink2)),

@@ -103,7 +103,7 @@ class _IndexDetailPageState extends State<IndexDetailPage> {
                 ),
                 const Spacer(),
                 Text(_isIntra ? '對昨收' : '此區間',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11, color: AppColors.ink3)),
               ],
             ),
