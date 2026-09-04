@@ -5,6 +5,8 @@ import '../models.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'qr_export_page.dart';
+import 'qr_scan_page.dart';
 import 'quote_detail_page.dart';
 import 'search_page.dart';
 
@@ -65,6 +67,11 @@ class WatchlistPage extends ConsumerWidget {
             ],
           ),
           IconButton(
+            icon: const Icon(Icons.qr_code),
+            tooltip: 'QR 分享／匯入',
+            onPressed: () => _qrSheet(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.search),
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const SearchPage())),
@@ -122,6 +129,44 @@ class WatchlistPage extends ConsumerWidget {
   }
 
   // 群組選單
+  // QR 分享 / 掃描匯入
+  void _qrSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.qr_code_2, color: AppColors.accent),
+              title: const Text('產生 QR 碼分享'),
+              subtitle: const Text('把目前所有群組跟自選股編成 QR 給別人掃',
+                  style: TextStyle(fontSize: 12)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const QrExportPage()));
+              },
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.qr_code_scanner, color: AppColors.accent),
+              title: const Text('掃描 QR 碼匯入'),
+              subtitle: const Text('把別人分享的自選股加進來（不會覆蓋現有資料）',
+                  style: TextStyle(fontSize: 12)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const QrScanPage()));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _groupSheet(BuildContext context, WidgetRef ref) {
     final wl = ref.read(watchlistProvider.notifier);
     showModalBottomSheet(

@@ -127,9 +127,14 @@ class IntradayChart extends StatelessWidget {
           child: Text('無分時資料（非交易時段）',
               style: TextStyle(color: AppColors.ink3)));
     }
-    final span = [prevClose, ...prices, ...cdp.values];
-    final lo = span.reduce((a, b) => a < b ? a : b);
-    final hi = span.reduce((a, b) => a > b ? a : b);
+    // 昨收固定畫在正中間：以昨收為中心，取「離昨收最遠的偏移量」對稱
+    // 抓上下界，這樣虛線永遠在圖表正中央，不會因為股價漲多跌多而偏移。
+    final span = [...prices, ...cdp.values];
+    final maxDev = span
+        .map((v) => (v - prevClose).abs())
+        .fold<double>(1e-6, (a, b) => a > b ? a : b);
+    final lo = prevClose - maxDev;
+    final hi = prevClose + maxDev;
     final up = prices.last >= prevClose;
     final col = up ? AppColors.up : AppColors.down;
 
@@ -826,4 +831,99 @@ class MarketTickerRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 多檔標的走勢比較（以區間起點為 0% 正規化畫在同一張圖）
+class CompareSeries {
+  final String label;
+  final Color color;
+  final List<double> pct; // 相對區間起點的漲跌 %
+  const CompareSeries(this.label, this.color, this.pct);
+}
+
+class CompareChart extends StatelessWidget {
+  final List<CompareSeries> series;
+  const CompareChart(this.series, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final usable = series.where((s) => s.pct.length > 1).toList();
+    if (usable.isEmpty) {
+      return const Center(
+          child: Text('無資料', style: TextStyle(color: AppColors.ink3)));
+    }
+    final all = [for (final s in usable) ...s.pct, 0.0];
+    final lo = all.reduce((a, b) => a < b ? a : b);
+    final hi = all.reduce((a, b) => a > b ? a : b);
+    return Column(
+      children: [
+        Expanded(
+          child: CustomPaint(
+            painter: _ComparePainter(usable, lo, hi),
+            size: Size.infinite,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 14,
+          runSpacing: 4,
+          children: [
+            for (final s in usable)
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                    width: 9,
+                    height: 9,
+                    decoration:
+                        BoxDecoration(color: s.color, shape: BoxShape.circle)),
+                const SizedBox(width: 5),
+                Text(
+                    '${s.label}  ${signed(s.pct.isEmpty ? 0 : s.pct.last, 2)}%',
+                    style: TextStyle(
+                        fontSize: 12, color: s.color, fontWeight: FontWeight.w600)),
+              ]),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ComparePainter extends CustomPainter {
+  final List<CompareSeries> series;
+  final double lo, hi;
+  _ComparePainter(this.series, this.lo, this.hi);
+  @override
+  void paint(Canvas c, Size s) {
+    final range = (hi - lo).abs() < 1e-9 ? 1.0 : hi - lo;
+    double y(double v) => s.height - (v - lo) / range * s.height;
+
+    // 0% 基準虛線
+    final zeroY = y(0);
+    final dash = Paint()
+      ..color = AppColors.ink3
+      ..strokeWidth = 1;
+    for (double dx = 0; dx < s.width; dx += 6) {
+      c.drawLine(Offset(dx, zeroY), Offset(dx + 3, zeroY), dash);
+    }
+
+    for (final ser in series) {
+      final p = ser.pct;
+      final n = p.length - 1;
+      if (n <= 0) continue;
+      double x(int i) => i / n * s.width;
+      final path = ui.Path()..moveTo(x(0), y(p[0]));
+      for (var i = 1; i < p.length; i++) {
+        path.lineTo(x(i), y(p[i]));
+      }
+      c.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.8
+            ..color = ser.color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ComparePainter o) => o.series != series;
 }

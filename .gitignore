@@ -63,3 +63,5 @@ android/key.properties
 *.jks
 *.keystore
 android/local.properties
+android/.gradle/
+**/xcshareddata/swiftpm/

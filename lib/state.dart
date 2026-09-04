@@ -192,6 +192,48 @@ class WatchlistNotifier extends StateNotifier<List<Symbol>> {
     state = [...list];
     _save();
   }
+
+  // ---------- QR 匯出／匯入 ----------
+  /// 編成給 QR code 用的緊湊 JSON 字串
+  String exportPayload() {
+    return jsonEncode({
+      't': 'wl',
+      'v': 1,
+      'g': [
+        for (final name in _order)
+          {'n': name, 's': _groups[name]!.map((s) => s.id).toList()},
+      ],
+    });
+  }
+
+  /// 掃描別台手機的 QR 後合併進來（同名群組合併，不覆蓋既有資料）。
+  /// 回傳 (新增群組數, 新增股票數)；payload 格式不對會丟例外。
+  (int, int) importMerge(String payload) {
+    final obj = jsonDecode(payload);
+    if (obj is! Map || obj['t'] != 'wl' || obj['g'] is! List) {
+      throw const FormatException('不是自選股 QR 碼');
+    }
+    var newGroups = 0, newStocks = 0;
+    for (final g in (obj['g'] as List)) {
+      if (g is! Map || g['n'] is! String || g['s'] is! List) continue;
+      final name = g['n'] as String;
+      final syms = (g['s'] as List).whereType<String>().map(Symbol.parse);
+      if (!_groups.containsKey(name)) {
+        _groups[name] = [];
+        _order = [..._order, name];
+        newGroups++;
+      }
+      for (final s in syms) {
+        if (!_groups[name]!.contains(s)) {
+          _groups[name] = [..._groups[name]!, s];
+          newStocks++;
+        }
+      }
+    }
+    state = [...(_groups[_current] ?? const [])];
+    _save();
+    return (newGroups, newStocks);
+  }
 }
 
 final watchlistProvider =

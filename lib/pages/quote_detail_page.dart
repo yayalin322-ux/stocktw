@@ -17,6 +17,7 @@ import '../widgets.dart';
 import '../etf_holdings.dart';
 import '../glossary.dart';
 import 'alerts_page.dart';
+import 'compare_page.dart';
 import 'glossary_page.dart';
 import 'portfolio_page.dart';
 
@@ -97,11 +98,11 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
   bool get _isTW => widget.symbol.market.isTW;
   bool get _isEtf => _isTW && isEtfCode(widget.symbol.code);
   bool get _hasHoldings => kEtfHoldings.containsKey(widget.symbol.code);
-  // 一般台股：五檔/財報/股利/籌碼/新聞
-  // ETF：五檔/(成分股)/股利/籌碼/新聞（無財報）
+  // 一般台股：五檔/財報/股利/籌碼/相關/新聞
+  // ETF：五檔/(成分股)/股利/籌碼/相關/新聞（無財報）
   // 美股：新聞
   int get _tabCount => (_isTW
-          ? (_isEtf ? (_hasHoldings ? 5 : 4) : 5)
+          ? (_isEtf ? (_hasHoldings ? 5 : 4) : 5) + 1 // + 相關
           : 1) +
       1; // + 備忘錄
   late final TabController _tab = TabController(length: _tabCount, vsync: this);
@@ -290,6 +291,7 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
               if (_isEtf && _hasHoldings) const Tab(text: '成分股'),
               if (_isTW) const Tab(text: '股利/配息'),
               if (_isTW) const Tab(text: '籌碼'),
+              if (_isTW) const Tab(text: '相關'),
               const Tab(text: '新聞'),
               const Tab(text: '備忘錄'),
             ],
@@ -307,6 +309,8 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
                 if (_isTW)
                   _DividendTab(code: widget.symbol.code, price: q?.price),
                 if (_isTW) _ChipTab(code: widget.symbol.code),
+                if (_isTW)
+                  _RelatedTab(symbol: widget.symbol, name: name),
                 _NewsTab(
                     code: widget.symbol.code, name: name, tw: _isTW),
                 _NotesTab(id: widget.symbol.id),
@@ -1250,6 +1254,79 @@ class _NotesTabState extends ConsumerState<_NotesTab> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ---------------- 相關（ETF／比較／期貨）----------------
+class _RelatedTab extends StatelessWidget {
+  final Symbol symbol;
+  final String name;
+  const _RelatedTab({required this.symbol, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final holders = etfsHolding(symbol.code);
+    final hasFutures = kHasStockFutures.contains(symbol.code);
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const _H('個股比較'),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.show_chart, size: 18),
+          label: const Text('跟其他標的比漲跌幅'),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ComparePage(base: symbol, baseName: name),
+            ),
+          ),
+        ),
+        const SizedBox(height: 22),
+        const _H('相關 ETF（本檔被以下 ETF 持有）'),
+        if (holders.isEmpty)
+          const Text('目前收錄的熱門 ETF 中沒有找到',
+              style: TextStyle(fontSize: 13, color: AppColors.ink3))
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final h in holders)
+                ActionChip(
+                  label: Text('${h.etfCode}　權重 ${h.weight.toStringAsFixed(1)}%'),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => QuoteDetailPage(
+                        symbol: Symbol(h.etfCode, Market.tse),
+                        name: h.etfCode,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        const SizedBox(height: 22),
+        const _H('相關期貨'),
+        Text(
+          hasFutures ? '本檔有掛牌股票期貨（台灣期交所）' : '本檔目前查無掛牌的股票期貨',
+          style: const TextStyle(fontSize: 13, color: AppColors.ink2),
+        ),
+        if (hasFutures) ...[
+          const SizedBox(height: 6),
+          TextButton.icon(
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text('到期交所查即時行情'),
+            onPressed: () => launchUrl(
+              Uri.parse(
+                  'https://www.taifex.com.tw/cht/3/futDataSearch'),
+              mode: LaunchMode.externalApplication,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

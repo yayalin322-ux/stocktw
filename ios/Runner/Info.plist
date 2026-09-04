@@ -26,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>用來掃描 QR 碼匯入自選股</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>用來把除權息日期加入你的行事曆</string>
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>

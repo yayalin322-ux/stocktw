@@ -131,3 +131,36 @@ const kEtfHoldings = <String, List<Holding>>{
     Holding('NFLX', 'Netflix 網飛', 2.0),
   ],
 };
+
+/// 反查：這檔股票被哪些 ETF 持有（依權重高到低）
+class EtfHold {
+  final String etfCode;
+  final double weight;
+  const EtfHold(this.etfCode, this.weight);
+}
+
+List<EtfHold> etfsHolding(String code) {
+  final out = <EtfHold>[];
+  for (final e in kEtfHoldings.entries) {
+    for (final h in e.value) {
+      if (h.code == code) {
+        out.add(EtfHold(e.key, h.weight));
+        break;
+      }
+    }
+  }
+  out.sort((a, b) => b.weight.compareTo(a.weight));
+  return out;
+}
+
+/// 有股票期貨（TAIFEX 掛牌）的常見台股代號（近似清單，非官方即時資料）
+const kHasStockFutures = <String>{
+  '2330', '2317', '2454', '2308', '2382', '2881', '2882', '2891', '2886',
+  '2892', '3711', '2303', '2412', '1301', '1303', '1326', '2002', '2207',
+  '2603', '2609', '2615', '3034', '3037', '3231', '3661', '4938', '5871',
+  '5880', '6505', '6669', '8046', '9910', '2379', '2357', '2377', '2395',
+  '2409', '2449', '2474', '2618', '2801', '2880', '2883', '2884', '2885',
+  '2887', '2888', '2890', '3008', '3045', '3443', '3653', '4904', '4958',
+  '5876', '6446', '6415', '6488', '9904', '9945', '00631L', '00632R',
+  '0050', '0056', '00878',
+};
