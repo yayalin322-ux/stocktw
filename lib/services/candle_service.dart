@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../models.dart';
 import 'api.dart';
 
@@ -23,7 +25,7 @@ class CandleService {
           // 才有機會換另一個後綴再試。
           options: Options(validateStatus: (s) => s != null && s < 500),
         );
-        final result = res.data is Map ? res.data['chart']?['result'] : null;
+        final result = res.data['chart']?['result'];
         return (result is List && result.isNotEmpty) ? result[0] : null;
       } catch (_) {
         return null;
