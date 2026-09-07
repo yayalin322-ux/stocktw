@@ -114,12 +114,14 @@ class Quote {
   factory Quote.fromMis(Map<String, dynamic> m) {
     final bids = _levels(m['b']?.toString(), m['g']?.toString());
     final asks = _levels(m['a']?.toString(), m['f']?.toString());
-    // 冷門 ETF（中國 A 股、債券 ETF 等）盤中常沒有成交價 z/pz，
-    // 這時用最佳買賣中價估計，比直接掉回「昨收 y」準得多。
+    // 沒有成交價 z/pz（冷門標的、或盤中兩筆撮合之間的空檔）時，用「最佳買價」
+    // 當現價 —— 那是真實存在、符合跳動單位的價格。
+    // 不要用買賣中價：像緯穎 2450/2455 會算出 2452.5 這種不存在的價位。
     double? last = _d(m['z']) ?? _d(m['pz']);
-    last ??= (bids.isNotEmpty && asks.isNotEmpty)
-        ? (bids.first.price + asks.first.price) / 2
-        : (_d(m['oz']) ?? _d(m['o']) ?? _d(m['y']));
+    last ??= bids.isNotEmpty
+        ? bids.first.price
+        : (asks.isNotEmpty ? asks.first.price : null);
+    last ??= _d(m['oz']) ?? _d(m['o']) ?? _d(m['y']);
     return Quote(
       code: m['c']?.toString() ?? '',
       name: m['n']?.toString() ?? '',
