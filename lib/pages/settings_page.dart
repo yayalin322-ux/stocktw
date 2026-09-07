@@ -131,12 +131,39 @@ class SettingsPage extends ConsumerWidget {
           ),
           const Divider(),
           const _Header('意見反饋'),
-          ListTile(
-            leading: const Icon(Icons.chat_bubble_outline, color: AppColors.accent),
-            title: const Text('意見反饋 / 客服'),
-            subtitle: const Text('問題回報、功能建議，直接送到後台'),
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const FeedbackPage())),
+          ValueListenableBuilder<int>(
+            valueListenable: feedbackUnread,
+            builder: (_, n, _) => ListTile(
+              leading: const Icon(Icons.chat_bubble_outline,
+                  color: AppColors.accent),
+              title: Row(
+                children: [
+                  const Text('意見反饋 / 客服'),
+                  if (n > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.down,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text('$n 則新回覆',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
+                    ),
+                  ],
+                ],
+              ),
+              subtitle: const Text('問題回報、功能建議，直接送到後台'),
+              onTap: () async {
+                await Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const FeedbackPage()));
+                refreshFeedbackUnread();
+              },
+            ),
           ),
           const Divider(),
           const _Header('關於'),
