@@ -240,9 +240,120 @@ async function runBroadcasts() {
   }
 }
 
+// ---------- 意見反饋回覆推播 ----------
+async function runFeedbackReplies() {
+  const snap = await db.collection("feedback").get();
+  let sent = 0, skipped = 0, failed = 0;
+  for (const doc of snap.docs) {
+    const v = doc.data();
+    if (v.replyNotified === true) continue;
+    // 新版：messages 陣列裡有 admin 訊息；舊版：v.reply 字串
+    const msgs = Array.isArray(v.messages) ? v.messages : [];
+    const lastAdmin = [...msgs].reverse().find((m) => m.from === "admin");
+    const body = lastAdmin ? lastAdmin.text : v.reply;
+    if (!body) continue;
+
+    const token = v.deviceToken;
+    if (!token) {
+      // 這張票沒有可推播的裝置（例如 iOS 沒拿到 APNs token）。
+      // 不要把它標成 replyNotified，之後 App 端補上 token 或 App 開著時
+      // 由 FeedbackWatch 本機補一則通知。避免無限重試就記個計數。
+      const tries = (v.replyNoTokenTries || 0) + 1;
+      await doc.ref.update({
+        replyNoTokenTries: tries,
+        ...(tries >= 20 ? { replyNotified: true } : {}),
+      });
+      skipped++;
+      continue;
+    }
+
+    try {
+      await fcm.send({
+        token,
+        notification: {
+          title: "開發者回覆了你的意見反饋",
+          body: body.length > 120 ? body.slice(0, 120) + "…" : body,
+        },
+        data: { kind: "feedback_reply", ticketId: doc.id },
+      });
+      await doc.ref.update({ replyNotified: true, replyNoTokenTries: 0 });
+      sent++;
+    } catch (e) {
+      const code = e.errorInfo?.code || e.code || "";
+      console.error("feedback reply send", doc.id, code, e.message);
+      // token 失效 → 這台裝置收不到了，標記完成免得每次都重試
+      if (
+        code.includes("registration-token-not-registered") ||
+        code.includes("invalid-argument") ||
+        code.includes("invalid-registration-token")
+      ) {
+        await doc.ref.update({ replyNotified: true });
+      } else {
+        const tries = (v.replySendTries || 0) + 1;
+        await doc.ref.update({
+          replySendTries: tries,
+          ...(tries >= 8 ? { replyNotified: true } : {}),
+        });
+      }
+      failed++;
+    }
+  }
+  console.log(
+    `意見反饋回覆推播：送出 ${sent}、無 token ${skipped}、失敗 ${failed}`
+  );
+}
+
+// ---------- 意見反饋維護 ----------
+// 1. 已結案（status==closed）：10 天後刪除雲端資料（使用者手機保留本地副本）
+// 2. 等使用者確認結案（status==pending_user_close）：14 天沒回應 → 視同同意，自動結案
+async function runFeedbackCleanup() {
+  const snap = await db.collection("feedback").get();
+  const now = Date.now();
+  const delCutoff = now - 10 * 24 * 60 * 60 * 1000;
+  const autoCloseCutoff = now - 14 * 24 * 60 * 60 * 1000;
+  let removed = 0, autoClosed = 0;
+  for (const doc of snap.docs) {
+    const v = doc.data();
+    if (v.status === "closed") {
+      const closedMs = v.closedAt?.toMillis ? v.closedAt.toMillis() : 0;
+      if (closedMs && closedMs < delCutoff) {
+        await doc.ref.delete();
+        removed++;
+      }
+    } else if (v.status === "pending_user_close") {
+      const upMs = v.updatedAt?.toMillis ? v.updatedAt.toMillis() : 0;
+      if (upMs && upMs < autoCloseCutoff) {
+        await doc.ref.update({
+          status: "closed",
+          closedAt: admin.firestore.FieldValue.serverTimestamp(),
+          autoClosed: true,
+        });
+        autoClosed++;
+      }
+    }
+  }
+  console.log(`清除已結案反饋 ${removed} 筆、逾時自動結案 ${autoClosed} 筆`);
+}
+
+process.on("unhandledRejection", (e) => {
+  console.error("unhandledRejection", e);
+});
+
 (async () => {
-  await runAlerts();
-  await runMaCrossAlerts();
-  await runBroadcasts();
-  process.exit(0);
+  const steps = [
+    ["runAlerts", runAlerts],
+    ["runMaCrossAlerts", runMaCrossAlerts],
+    ["runBroadcasts", runBroadcasts],
+    ["runFeedbackReplies", runFeedbackReplies],
+    ["runFeedbackCleanup", runFeedbackCleanup],
+  ];
+  for (const [name, fn] of steps) {
+    try {
+      await fn();
+    } catch (e) {
+      console.error(`[${name}] 失敗：`, e && e.stack ? e.stack : e);
+    }
+  }
+  // 等 stdout 排空再結束（CI 下 process.exit 會截斷輸出）
+  await new Promise((r) => setTimeout(r, 200));
 })();
