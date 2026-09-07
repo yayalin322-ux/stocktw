@@ -86,9 +86,27 @@ class WatchlistPage extends ConsumerWidget {
               child: sort == SortMode.custom
                   ? ReorderableListView.builder(
                       itemCount: sorted.length,
+                      buildDefaultDragHandles: false,
                       onReorder: (o, n) => wl.reorder(o, n),
-                      itemBuilder: (c, i) => _row(context, ref, sorted[i],
-                          quotes[sorted[i].id], key: ValueKey(sorted[i].id)),
+                      itemBuilder: (c, i) => Row(
+                        key: ValueKey('wl_${sorted[i].id}'),
+                        children: [
+                          Expanded(
+                            child: _row(context, ref, sorted[i],
+                                quotes[sorted[i].id],
+                                key: ValueKey(sorted[i].id)),
+                          ),
+                          ReorderableDragStartListener(
+                            index: i,
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(4, 0, 10, 0),
+                              child: Icon(Icons.drag_handle,
+                                  color: AppColors.ink3),
+                            ),
+                          ),
+                        ],
+                      ),
                     )
                   : ListView.separated(
                       itemCount: sorted.length,

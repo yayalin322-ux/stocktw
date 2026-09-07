@@ -20,7 +20,8 @@ class AlertsPage extends ConsumerWidget {
         onPressed: () async {
           final r = await pickSymbol(context);
           if (r != null && context.mounted) {
-            showAddAlert(context, ref, r.$1, r.$2);
+            final px = ref.read(quotesProvider)[r.$1.id]?.price;
+            showAddAlert(context, ref, r.$1, r.$2, price: px);
           }
         },
         child: const Icon(Icons.add),
@@ -105,11 +106,17 @@ Future<void> showAddAlert(
   String name, {
   double? price,
 }) {
-  final ctrl = TextEditingController(text: price?.toStringAsFixed(2) ?? '');
+  final base = (price != null && price > 0) ? price : null;
+  final ctrl = TextEditingController(text: base?.toStringAsFixed(2) ?? '');
+  double target = base ?? 0;
   bool above = true;
   String kind = 'price'; // price | ma_cross
   int maPeriod = 20;
   bool crossUp = true;
+
+  // 滑桿範圍：現價 ±30%
+  final sMin = base != null ? base * 0.7 : 0.0;
+  final sMax = base != null ? base * 1.3 : 0.0;
 
   return showModalBottomSheet(
     context: context,
@@ -156,7 +163,33 @@ Future<void> showAddAlert(
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                     labelText: '目標價', border: OutlineInputBorder()),
+                onChanged: (t) {
+                  final d = double.tryParse(t.trim());
+                  if (d != null) setSt(() => target = d);
+                },
               ),
+              if (base != null) ...[
+                const SizedBox(height: 4),
+                Slider(
+                  min: sMin,
+                  max: sMax,
+                  divisions: 120,
+                  label: target.toStringAsFixed(2),
+                  value: target.clamp(sMin, sMax),
+                  onChanged: (v) {
+                    setSt(() {
+                      target = double.parse(v.toStringAsFixed(2));
+                      ctrl.text = target.toStringAsFixed(2);
+                      ctrl.selection = TextSelection.collapsed(
+                          offset: ctrl.text.length);
+                    });
+                  },
+                ),
+                Text(
+                  '現價 ${base.toStringAsFixed(2)}   滑桿範圍 ±30%（可再手動微調）',
+                  style: TextStyle(fontSize: 11, color: AppColors.ink3),
+                ),
+              ],
             ] else ...[
               SegmentedButton<bool>(
                 segments: const [
@@ -188,7 +221,7 @@ Future<void> showAddAlert(
             FilledButton(
               onPressed: () {
                 if (kind == 'price') {
-                  final t = double.tryParse(ctrl.text.trim()) ?? 0;
+                  final t = double.tryParse(ctrl.text.trim()) ?? target;
                   if (t <= 0) return;
                   ref.read(alertsProvider.notifier).add(PriceAlert(
                         id: '${s.id}:${DateTime.now().millisecondsSinceEpoch}',

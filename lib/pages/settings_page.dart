@@ -14,19 +14,43 @@ class SettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final light = ref.watch(themeModeProvider);
+    final mode = ref.watch(themeModeProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('設定')),
       body: ListView(
         children: [
           const _Header('外觀'),
-          SwitchListTile(
-            secondary: Icon(
-                light ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
-            title: const Text('淺色模式'),
-            subtitle: const Text('關閉則是預設的深色主題'),
-            value: light,
-            onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
+            child: Row(
+              children: [
+                const Icon(Icons.brightness_6_outlined),
+                const SizedBox(width: 12),
+                const Text('主題'),
+                const Spacer(),
+                SegmentedButton<AppThemeMode>(
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact),
+                  segments: const [
+                    ButtonSegment(
+                        value: AppThemeMode.system, label: Text('跟隨系統')),
+                    ButtonSegment(
+                        value: AppThemeMode.light, label: Text('淺色')),
+                    ButtonSegment(
+                        value: AppThemeMode.dark, label: Text('深色')),
+                  ],
+                  selected: {mode},
+                  onSelectionChanged: (v) =>
+                      ref.read(themeModeProvider.notifier).set(v.first),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(52, 0, 16, 8),
+            child: Text('「跟隨系統」會依手機本身的深／淺色設定自動切換',
+                style: TextStyle(fontSize: 11, color: AppColors.ink3)),
           ),
           const Divider(),
           const _Header('新手'),

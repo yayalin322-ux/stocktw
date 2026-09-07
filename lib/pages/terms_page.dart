@@ -11,7 +11,7 @@ class TermsPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          Text('最後更新：2026 年 9 月',
+          Text('最後更新：2026 年 9 月（v6）',
               style: TextStyle(fontSize: 12, color: AppColors.ink3)),
           const SizedBox(height: 16),
           Container(
@@ -44,7 +44,8 @@ class TermsPage extends StatelessWidget {
             'App 內顯示的資料來自台灣證券交易所（TWSE）、證券櫃檯買賣中心、Yahoo Finance、Google News 等公開來源。這些資料可能有延遲、缺漏或錯誤，開發者已盡力校對，但不保證其完整性、即時性與正確性。使用前請自行以官方公告或券商系統為準。',
           ]),
           const _Section('3. 帳號與資料', [
-            '本 App 不需要註冊帳號即可使用全部功能。你自行輸入的自選股、持倉、備忘錄等資料預設只存在你的裝置上；若啟用到價提醒推播，相關設定會同步一份到雲端資料庫以支援背景推播，詳見隱私權政策。',
+            '本 App 不需要註冊帳號即可使用全部功能。你自行輸入的自選股、持倉、備忘錄等資料預設只存在你的裝置上；若啟用到價提醒推播，相關設定會同步一份到雲端資料庫以支援背景推播。',
+            '「意見反饋」的每則反饋會暫存在雲端以便處理與回覆，開發者結案 10 天後自動刪除該筆雲端資料，你手機上的對話紀錄則保留。詳見隱私權政策。',
           ]),
           const _Section('4. 使用限制', [
             '不得以任何形式對本 App 進行逆向工程、大量爬取資料、干擾正常運作或造成資料來源方（如證交所）的負擔。',

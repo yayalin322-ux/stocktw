@@ -20,6 +20,7 @@ import '../glossary.dart';
 import 'alerts_page.dart';
 import 'compare_page.dart';
 import 'dca_page.dart';
+import 'feedback_page.dart';
 import 'ex_calendar_page.dart';
 import 'glossary_page.dart';
 import 'portfolio_page.dart';
@@ -233,6 +234,19 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
         ]),
         actions: [
           IconButton(
+            icon: const Icon(Icons.flag_outlined),
+            tooltip: '回報這檔資料問題',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => NewTicketPage(
+                  presetStockCode: widget.symbol.code,
+                  presetStockName: name,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.menu_book_outlined),
             tooltip: '名詞小百科',
             onPressed: () => Navigator.push(context,
@@ -276,32 +290,9 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
           ),
           if (_period != '分時') ...[
             _indicatorBar(),
-            if (_entities != null && _entities!.length > 20)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
-                child: Row(
-                  children: [
-                    Icon(Icons.zoom_in, size: 15, color: AppColors.ink3),
-                    Expanded(
-                      child: Slider(
-                        min: 20,
-                        max: _entities!.length.toDouble(),
-                        value: (_visibleCandles > 0
-                                ? _visibleCandles
-                                : _entities!.length)
-                            .toDouble()
-                            .clamp(20, _entities!.length.toDouble()),
-                        onChanged: (v) =>
-                            setState(() => _visibleCandles = v.round()),
-                      ),
-                    ),
-                    Icon(Icons.zoom_out, size: 15, color: AppColors.ink3),
-                  ],
-                ),
-              ),
             Padding(
               padding: EdgeInsets.only(left: 16, top: 2),
-              child: Text('拖動上面的滑桿單指縮放，或雙指縮放 · 長按看詳細 · 右上可全螢幕',
+              child: Text('雙指縮放 · 長按看詳細 · 右上可全螢幕',
                   style: TextStyle(fontSize: 10, color: AppColors.ink3)),
             ),
           ],
@@ -507,26 +498,32 @@ class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage>
         ? _visibleCandles
         : _entities!.length;
     final visible = _entities!.sublist(_entities!.length - n);
-    return KChartWidget(
-      visible,
-      const KChartStyle(),
-      _kchartColors(),
-      isTrendLine: false,
-      mainIndicators: _mainSel.map((i) => _mainInd[i]).toList(),
-      secondaryIndicators: _secSel.map((i) => _secInd[i]).toList(),
-      mBaseHeight: 230,
-      mSecondaryHeight: 70,
-      fixedLength: 2,
-      timeFormat: _period.contains('分')
-          ? TimeFormat.YEAR_MONTH_DAY_WITH_HOUR
-          : TimeFormat.YEAR_MONTH_DAY,
-      detailBuilder: (e) => Container(
-        padding: const EdgeInsets.all(8),
-        color: AppColors.surface2,
-        child: Text(
-          '開 ${e.open.toStringAsFixed(2)}  高 ${e.high.toStringAsFixed(2)}\n'
-          '低 ${e.low.toStringAsFixed(2)}  收 ${e.close.toStringAsFixed(2)}',
-          style: TextStyle(fontSize: 11, color: AppColors.ink),
+    // 換縮放級距時用 KeyedSubtree 逼 k_chart_plus 整個重建，讓它重新以新的
+    // 資料筆數自動撐滿寬度（KChartWidget 本身建構子沒收 key，且會沿用內部
+    // 的縮放/捲動狀態，不重建看起來就像滑桿沒反應）。
+    return KeyedSubtree(
+      key: ValueKey('kchart_${_period}_$n'),
+      child: KChartWidget(
+        visible,
+        const KChartStyle(),
+        _kchartColors(),
+        isTrendLine: false,
+        mainIndicators: _mainSel.map((i) => _mainInd[i]).toList(),
+        secondaryIndicators: _secSel.map((i) => _secInd[i]).toList(),
+        mBaseHeight: 230,
+        mSecondaryHeight: 70,
+        fixedLength: 2,
+        timeFormat: _period.contains('分')
+            ? TimeFormat.YEAR_MONTH_DAY_WITH_HOUR
+            : TimeFormat.YEAR_MONTH_DAY,
+        detailBuilder: (e) => Container(
+          padding: const EdgeInsets.all(8),
+          color: AppColors.surface2,
+          child: Text(
+            '開 ${e.open.toStringAsFixed(2)}  高 ${e.high.toStringAsFixed(2)}\n'
+            '低 ${e.low.toStringAsFixed(2)}  收 ${e.close.toStringAsFixed(2)}',
+            style: TextStyle(fontSize: 11, color: AppColors.ink),
+          ),
         ),
       ),
     );

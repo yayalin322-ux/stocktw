@@ -24,10 +24,19 @@ class IndexDetailPage extends StatefulWidget {
 }
 
 class _IndexDetailPageState extends State<IndexDetailPage> {
-  String _range = '1年';
+  // 櫃買指數沒有可用的盤中資料源（Yahoo ^TWOII 數列是錯的），只給日線
+  bool get _otc => widget.ySymbol == '^TWOII';
+  late String _range = _otc ? '1月' : '分時';
   List<Candle> _data = [];
   Intraday? _intra;
   bool _loading = true;
+
+  Map<String, (String, String)> get _rs {
+    if (!_otc) return _ranges;
+    final m = Map.of(_ranges);
+    m.remove('分時');
+    return m;
+  }
 
   bool get _isIntra => _range == '分時';
 
@@ -39,7 +48,7 @@ class _IndexDetailPageState extends State<IndexDetailPage> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final (r, i) = _ranges[_range]!;
+    final (r, i) = _rs[_range] ?? _ranges[_range]!;
     if (_isIntra) {
       final id = await marketService.intraday(widget.ySymbol,
           range: r, interval: i);
@@ -113,7 +122,7 @@ class _IndexDetailPageState extends State<IndexDetailPage> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              children: _ranges.keys.map((r) {
+              children: _rs.keys.map((r) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 4, vertical: 6),

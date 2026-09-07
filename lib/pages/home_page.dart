@@ -10,8 +10,10 @@ import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'dca_page.dart';
+import 'dividend_calc_page.dart';
 import 'ex_calendar_page.dart';
 import 'glossary_page.dart';
+import 'goal_calc_page.dart';
 import 'heatmap_page.dart';
 import 'index_detail_page.dart';
 import 'quote_detail_page.dart';
@@ -216,10 +218,15 @@ class _HomePageState extends ConsumerState<HomePage> {
             item(Icons.insights, '行情', () => _goTab(1)),
             item(Icons.filter_list, '選股', () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const ScreenerPage()))),
-            item(Icons.event_outlined, '除權息', () => Navigator.push(context,
+            item(Icons.calendar_month_outlined, '行事曆', () => Navigator.push(
+                context,
                 MaterialPageRoute(builder: (_) => const ExCalendarPage()))),
             item(Icons.savings_outlined, '定期定額', () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const DcaPage()))),
+            item(Icons.flag_outlined, '目標試算', () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const GoalCalcPage()))),
+            item(Icons.paid_outlined, '股利換算', () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const DividendCalcPage()))),
             item(Icons.grid_view_rounded, '熱力圖', () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const HeatmapPage()))),
             item(Icons.menu_book_outlined, '名詞', () => Navigator.push(context,

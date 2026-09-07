@@ -11,7 +11,7 @@ class PrivacyPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          Text('最後更新：2026 年 9 月',
+          Text('最後更新：2026 年 9 月（v6）',
               style: TextStyle(fontSize: 12, color: AppColors.ink3)),
           SizedBox(height: 16),
           Text(
@@ -23,7 +23,7 @@ class PrivacyPage extends StatelessWidget {
             '自選股、持倉、到價提醒、備忘錄：預設只存在你手機的本機儲存空間，不會上傳到任何伺服器，你解除安裝 App 就會一併刪除。',
             '推播權杖（FCM Token）：如果你允許通知，本 App 會把裝置的推播權杖，以及你設定的到價提醒內容（股票代號、目標價、均線條件等），同步一份到 Firebase Firestore 資料庫，讓背景排程能在 App 沒開啟時比對報價、推播通知給你。這份資料不含你的姓名、電話、Email 或其他可辨識身分的個人資料。',
             'QR 碼匯出/匯入自選股與持倉：資料直接編碼在 QR 圖片裡，手機對手機掃描讀取，不會經過我們的伺服器。',
-            '意見反饋：如果你在「意見反饋」頁送出訊息，內容（含你選填的聯絡方式）會存進後台資料庫，只用來處理你的回饋。',
+            '意見反饋：你在「意見反饋」建立的每一則反饋（主題分類、標題、內容與往來訊息、你選填的聯絡方式，以及用來回推播的裝置權杖）會存進 Firebase Firestore，只用來處理與回覆你的問題。開發者「結案」後，該筆雲端資料會在 10 天後自動刪除；你這支手機上的對話紀錄（含開發者回覆）會保留在本機，直到你自行刪除或解除安裝 App。App 開啟時會即時監聽你自己的反饋以便第一時間收到回覆通知。',
             '我們不會要求你註冊帳號、蒐集你的姓名/電話/位置資訊，也不會有第三方廣告或分析追蹤 SDK。',
           ]),
           _Section('2. 資料怎麼被使用', [
