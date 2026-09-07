@@ -181,19 +181,21 @@ class IntradayChart extends StatelessWidget {
               style: TextStyle(color: AppColors.ink3)));
     }
 
-    // 昨收固定畫在正中間：以昨收為中心，取「離昨收最遠的偏移量」對稱抓上下界，
-    // 再各留 15% 空白，這樣沒漲停/跌停時走勢線不會貼到最上或最下緣。
-    final span = [...regPrices, ...cdp.values];
-    final maxDev = span
-        .map((v) => (v - prevClose).abs())
-        .fold<double>(1e-6, (a, b) => a > b ? a : b);
-    final axisDev = maxDev * 1.15;
-    final lo = prevClose - axisDev;
-    final hi = prevClose + axisDev;
+    // y 軸：涵蓋「當日高、低、昨收、CDP 點位」，上下各留一小段空白。
+    // 不再硬把昨收擺正中間 —— 開高走高或開低走低時那會把走勢線擠成一小條、
+    // 上（或下）半部一大片空白。這樣線會填滿畫面，昨收線仍一定看得到。
     final dataHi =
         regPrices.fold<double>(regPrices.first, (a, b) => b > a ? b : a);
     final dataLo =
         regPrices.fold<double>(regPrices.first, (a, b) => b < a ? b : a);
+    final rangeHi = [dataHi, prevClose, ...cdp.values]
+        .reduce((a, b) => a > b ? a : b);
+    final rangeLo = [dataLo, prevClose, ...cdp.values]
+        .reduce((a, b) => a < b ? a : b);
+    final rawPad = (rangeHi - rangeLo) * 0.12;
+    final pad = rawPad < prevClose * 0.003 ? prevClose * 0.003 : rawPad;
+    final lo = rangeLo - pad;
+    final hi = rangeHi + pad;
     final up = regPrices.last >= prevClose;
     final col = up ? AppColors.up : AppColors.down;
 
