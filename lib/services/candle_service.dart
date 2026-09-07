@@ -10,17 +10,24 @@ class CandleService {
     String interval = '1d',
   }) async {
     Future<dynamic> hit(String sym) async {
-      final res = await yahooDio.get(
-        'https://query1.finance.yahoo.com/v8/finance/chart/$sym',
-        queryParameters: {
-          'range': range,
-          'interval': interval,
-          'includePrePost': false,
-          'events': 'split', // 用來還原 Yahoo 的減資/合股/分割調整
-        },
-      );
-      final result = res.data['chart']?['result'];
-      return (result is List && result.isNotEmpty) ? result[0] : null;
+      try {
+        final res = await yahooDio.get(
+          'https://query1.finance.yahoo.com/v8/finance/chart/$sym',
+          queryParameters: {
+            'range': range,
+            'interval': interval,
+            'includePrePost': false,
+            'events': 'split', // 用來還原 Yahoo 的減資/合股/分割調整
+          },
+          // Yahoo 對不存在的代號回 404 + JSON；不要讓 Dio 直接丟例外，
+          // 才有機會換另一個後綴再試。
+          options: Options(validateStatus: (s) => s != null && s < 500),
+        );
+        final result = res.data is Map ? res.data['chart']?['result'] : null;
+        return (result is List && result.isNotEmpty) ? result[0] : null;
+      } catch (_) {
+        return null;
+      }
     }
 
     var r = await hit('${s.code}${s.market.yahooSuffix}');
