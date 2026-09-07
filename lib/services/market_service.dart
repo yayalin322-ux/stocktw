@@ -366,10 +366,34 @@ class MarketService {
         ));
       }
       final reg = r?['meta']?['currentTradingPeriod']?['regular'];
+      var regStart = (reg?['start'] as num?)?.toInt();
+      var regEnd = (reg?['end'] as num?)?.toInt();
+      // Yahoo 收盤後會把 currentTradingPeriod 指到「下一個交易時段」，
+      // 於是今天的資料全部落在 regStart 之前 → 被誤判成「盤前試搓」。
+      // 若 regStart/regEnd 沒有把資料包住，就用資料當天的日期重算正常盤時段。
+      if (pts.isNotEmpty) {
+        final firstTs = ts.first;
+        final lastTs = ts.last;
+        final bracketsData = regStart != null &&
+            regEnd != null &&
+            regStart <= lastTs &&
+            regEnd >= firstTs;
+        if (!bracketsData) {
+          final gmt = (r?['meta']?['gmtoffset'] as num?)?.toInt() ?? 28800;
+          // 資料最後一筆的「當地日期」零點
+          final localDayStart =
+              ((lastTs + gmt) ~/ 86400) * 86400 - gmt;
+          // 台股正常盤 09:00–13:30；美股等非台股就維持 Yahoo 給的值
+          if (ySymbol.endsWith('.TW') || ySymbol.endsWith('.TWO')) {
+            regStart = localDayStart + 9 * 3600;
+            regEnd = localDayStart + 13 * 3600 + 30 * 60;
+          }
+        }
+      }
       return Intraday(
         pts,
-        (reg?['start'] as num?)?.toInt(),
-        (reg?['end'] as num?)?.toInt(),
+        regStart,
+        regEnd,
         (r?['meta']?['chartPreviousClose'] as num?)?.toDouble(),
       );
     } catch (_) {
