@@ -9,19 +9,27 @@ class CandleService {
     String range = '1y',
     String interval = '1d',
   }) async {
-    final sym = '${s.code}${s.market.yahooSuffix}';
-    final res = await yahooDio.get(
-      'https://query1.finance.yahoo.com/v8/finance/chart/$sym',
-      queryParameters: {
-        'range': range,
-        'interval': interval,
-        'includePrePost': false,
-        'events': 'split', // 用來還原 Yahoo 的減資/合股/分割調整
-      },
-    );
-    final result = res.data['chart']?['result'];
-    if (result == null || (result as List).isEmpty) return [];
-    final r = result[0];
+    Future<dynamic> hit(String sym) async {
+      final res = await yahooDio.get(
+        'https://query1.finance.yahoo.com/v8/finance/chart/$sym',
+        queryParameters: {
+          'range': range,
+          'interval': interval,
+          'includePrePost': false,
+          'events': 'split', // 用來還原 Yahoo 的減資/合股/分割調整
+        },
+      );
+      final result = res.data['chart']?['result'];
+      return (result is List && result.isNotEmpty) ? result[0] : null;
+    }
+
+    var r = await hit('${s.code}${s.market.yahooSuffix}');
+    // 上市/上櫃分類反了（常見於債券 ETF，如 00679B）→ 換另一個後綴再試
+    if (r == null && s.market.isTW) {
+      final alt = s.market == Market.tse ? '.TWO' : '.TW';
+      r = await hit('${s.code}$alt');
+    }
+    if (r == null) return [];
     final ts = (r['timestamp'] as List?)?.cast<int>() ?? const [];
     final q = r['indicators']?['quote']?[0];
     if (q == null) return [];

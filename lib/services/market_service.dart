@@ -323,6 +323,15 @@ class MarketService {
     if (r.points.length < 2) {
       r = await _intradayOnce(ySymbol, range, '5m', false);
     }
+    // 上市/上櫃分類反了（債券 ETF 常見，如 00679B）→ 換另一個後綴再試
+    if (r.points.length < 2 &&
+        (ySymbol.endsWith('.TW') || ySymbol.endsWith('.TWO'))) {
+      final alt = ySymbol.endsWith('.TWO')
+          ? '${ySymbol.substring(0, ySymbol.length - 4)}.TW'
+          : '${ySymbol.substring(0, ySymbol.length - 3)}.TWO';
+      final r2 = await _intradayOnce(alt, range, interval, true);
+      if (r2.points.length >= 2) return r2;
+    }
     return r;
   }
 
