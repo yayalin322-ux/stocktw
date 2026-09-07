@@ -10,7 +10,6 @@ import 'services/candle_service.dart';
 import 'services/notifications.dart';
 import 'services/quote_service.dart';
 import 'services/widget_service.dart';
-import 'theme.dart';
 
 /// 於 main() override
 final prefsProvider = Provider<SharedPreferences>((_) {
@@ -602,23 +601,33 @@ final hideAmountsProvider =
 String maskable(bool hide, String text) => hide ? '••••••' : text;
 
 // ------------------------------------------------------------------
-// 淺色／深色主題（記住上次選擇）
+// 主題模式：跟隨系統 / 淺色 / 深色（記住上次選擇，預設跟隨系統）
 // ------------------------------------------------------------------
-class ThemeModeNotifier extends StateNotifier<bool> {
-  ThemeModeNotifier(this._prefs) : super(_prefs.getBool(_key) ?? false) {
-    AppColors.setLight(state);
-  }
-  final SharedPreferences _prefs;
-  static const _key = 'themeLight';
+enum AppThemeMode { system, light, dark }
 
-  void toggle() {
-    state = !state;
-    AppColors.setLight(state);
-    _prefs.setBool(_key, state);
+class ThemeModeNotifier extends StateNotifier<AppThemeMode> {
+  ThemeModeNotifier(this._prefs) : super(_parse(_prefs.getString(_key)));
+  final SharedPreferences _prefs;
+  static const _key = 'themeMode';
+
+  static AppThemeMode _parse(String? s) {
+    switch (s) {
+      case 'light':
+        return AppThemeMode.light;
+      case 'dark':
+        return AppThemeMode.dark;
+      default:
+        return AppThemeMode.system;
+    }
+  }
+
+  void set(AppThemeMode m) {
+    state = m;
+    _prefs.setString(_key, m.name);
   }
 }
 
-/// true = 淺色
-final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, bool>((ref) {
+final themeModeProvider =
+    StateNotifierProvider<ThemeModeNotifier, AppThemeMode>((ref) {
   return ThemeModeNotifier(ref.watch(prefsProvider));
 });

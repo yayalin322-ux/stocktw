@@ -181,14 +181,19 @@ class IntradayChart extends StatelessWidget {
               style: TextStyle(color: AppColors.ink3)));
     }
 
-    // 昨收固定畫在正中間：以昨收為中心，取「離昨收最遠的偏移量」對稱
-    // 抓上下界，這樣虛線永遠在圖表正中央，不會因為股價漲多跌多而偏移。
+    // 昨收固定畫在正中間：以昨收為中心，取「離昨收最遠的偏移量」對稱抓上下界，
+    // 再各留 15% 空白，這樣沒漲停/跌停時走勢線不會貼到最上或最下緣。
     final span = [...regPrices, ...cdp.values];
     final maxDev = span
         .map((v) => (v - prevClose).abs())
         .fold<double>(1e-6, (a, b) => a > b ? a : b);
-    final lo = prevClose - maxDev;
-    final hi = prevClose + maxDev;
+    final axisDev = maxDev * 1.15;
+    final lo = prevClose - axisDev;
+    final hi = prevClose + axisDev;
+    final dataHi =
+        regPrices.fold<double>(regPrices.first, (a, b) => b > a ? b : a);
+    final dataLo =
+        regPrices.fold<double>(regPrices.first, (a, b) => b < a ? b : a);
     final up = regPrices.last >= prevClose;
     final col = up ? AppColors.up : AppColors.down;
 
@@ -214,11 +219,11 @@ class IntradayChart extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('高 ${hi.toStringAsFixed(2)}',
+              Text('高 ${dataHi.toStringAsFixed(2)}',
                   style: const TextStyle(fontSize: 11, color: AppColors.up)),
               Text('昨收 ${prevClose.toStringAsFixed(2)}',
                   style: TextStyle(fontSize: 11, color: AppColors.ink3)),
-              Text('低 ${lo.toStringAsFixed(2)}',
+              Text('低 ${dataLo.toStringAsFixed(2)}',
                   style: const TextStyle(fontSize: 11, color: AppColors.down)),
             ],
           ),

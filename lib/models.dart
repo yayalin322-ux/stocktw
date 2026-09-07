@@ -112,7 +112,14 @@ class Quote {
   }
 
   factory Quote.fromMis(Map<String, dynamic> m) {
-    final last = _d(m['z']) ?? _d(m['pz']) ?? _d(m['o']) ?? _d(m['y']);
+    final bids = _levels(m['b']?.toString(), m['g']?.toString());
+    final asks = _levels(m['a']?.toString(), m['f']?.toString());
+    // 冷門 ETF（中國 A 股、債券 ETF 等）盤中常沒有成交價 z/pz，
+    // 這時用最佳買賣中價估計，比直接掉回「昨收 y」準得多。
+    double? last = _d(m['z']) ?? _d(m['pz']);
+    last ??= (bids.isNotEmpty && asks.isNotEmpty)
+        ? (bids.first.price + asks.first.price) / 2
+        : (_d(m['oz']) ?? _d(m['o']) ?? _d(m['y']));
     return Quote(
       code: m['c']?.toString() ?? '',
       name: m['n']?.toString() ?? '',
@@ -124,8 +131,8 @@ class Quote {
       limitUp: _d(m['u']),
       limitDown: _d(m['w']),
       volume: int.tryParse(m['v']?.toString() ?? '') ?? 0,
-      bids: _levels(m['b']?.toString(), m['g']?.toString()),
-      asks: _levels(m['a']?.toString(), m['f']?.toString()),
+      bids: bids,
+      asks: asks,
       time: int.tryParse(m['tlong']?.toString() ?? '') != null
           ? DateTime.fromMillisecondsSinceEpoch(int.parse(m['tlong'].toString()))
           : null,

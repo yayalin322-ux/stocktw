@@ -114,7 +114,7 @@ class MarketService {
       }
     } catch (_) {}
 
-    // MIS 盤後沒給指數值 → 用 Yahoo 補
+    // MIS 盤後沒給指數值 → 加權用 Yahoo ^TWII 補
     Future<void> yh(String sym, String name) async {
       if (out.any((e) => e.name == name)) return;
       try {
@@ -134,7 +134,25 @@ class MarketService {
     }
 
     await yh('^TWII', '加權指數');
-    await yh('^TWOII', '櫃買指數');
+
+    // 櫃買指數：Yahoo ^TWOII 的數列是舊基期、數值是錯的，改用櫃買中心自己的
+    // openapi（EOD）當盤後補值。
+    if (!out.any((e) => e.name == '櫃買指數')) {
+      try {
+        final res = await webDio.get<List<dynamic>>(
+            'https://www.tpex.org.tw/openapi/v1/tpex_index');
+        final rows = res.data ?? const [];
+        if (rows.isNotEmpty && rows.last is Map) {
+          final r = rows.last as Map;
+          final close = double.tryParse('${r['Close']}');
+          final chg = double.tryParse('${r['Change']}') ?? 0;
+          if (close != null) {
+            out.insert(0,
+                IndexQuote('台股', '櫃買指數', '^TWOII', close, close - chg));
+          }
+        }
+      } catch (_) {}
+    }
 
     // Yahoo
     for (final entry in _yahoo.entries) {
@@ -162,9 +180,65 @@ class MarketService {
     return out;
   }
 
+  /// 櫃買指數每日收盤（櫃買中心 tradingIndex，逐月抓）。Yahoo 的 ^TWOII
+  /// 是舊基期、數值錯的，改用這個。
+  Future<List<Candle>> otcDailyHistory({int months = 6}) async {
+    months = months.clamp(1, 37);
+    final now = DateTime.now();
+    final out = <Candle>[];
+    Future<void> fetchMonth(DateTime m) async {
+      try {
+        final res = await webDio.get(
+          'https://www.tpex.org.tw/www/zh-tw/afterTrading/tradingIndex',
+          queryParameters: {
+            'date': '${m.year}/${m.month.toString().padLeft(2, '0')}/01',
+            'response': 'json',
+          },
+          options: Options(responseType: ResponseType.json),
+        );
+        final j = res.data is Map ? res.data as Map : {};
+        final tables = (j['tables'] as List?) ?? const [];
+        if (tables.isEmpty) return;
+        final rows = ((tables.first as Map)['data'] as List?) ?? const [];
+        for (final r in rows.cast<List>()) {
+          // [日期(民國yyy/MM/dd), 張數, 金額, 筆數, 收盤, 漲跌]
+          final ds = '${r[0]}'.split('/');
+          if (ds.length != 3) continue;
+          final y = int.tryParse(ds[0]);
+          final mo = int.tryParse(ds[1]);
+          final da = int.tryParse(ds[2]);
+          final close = (r.length > 4) ? _num(r[4]) : null;
+          if (y == null || mo == null || da == null || close == null) continue;
+          out.add(Candle(DateTime(y + 1911, mo, da), close, close, close,
+              close, 0));
+        }
+      } catch (_) {}
+    }
+
+    await Future.wait([
+      for (var i = 0; i < months; i++)
+        fetchMonth(DateTime(now.year, now.month - i, 1)),
+    ]);
+    out.sort((a, b) => a.time.compareTo(b.time));
+    return out;
+  }
+
   /// 任意指數/標的的歷史線（Yahoo），回傳收盤序列
   Future<List<Candle>> indexHistory(String ySymbol,
       {String range = '1y', String interval = '1d'}) async {
+    // 櫃買指數走櫃買中心的資料（Yahoo ^TWOII 數值是錯的）
+    if (ySymbol == '^TWOII') {
+      const monthsByRange = {
+        '5d': 2,
+        '1mo': 2,
+        '3mo': 4,
+        '6mo': 7,
+        '1y': 13,
+        '2y': 25,
+        '5y': 60,
+      };
+      return otcDailyHistory(months: monthsByRange[range] ?? 7);
+    }
     try {
       final res = await yahooDio.get(
         'https://query1.finance.yahoo.com/v8/finance/chart/${Uri.encodeComponent(ySymbol)}',

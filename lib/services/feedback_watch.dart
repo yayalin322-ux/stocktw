@@ -105,13 +105,13 @@ class FeedbackWatch {
     }
     t.messages.sort((a, b) => a.at.compareTo(b.at));
 
-    // 找出「比上次通知過的還新」的開發者訊息
+    // 找出「還沒發過通知」的開發者訊息（不動 seenAdminAt，讓列表維持「新回覆」紅點）
     final newAdmin = t.messages
-        .where((m) => m.from == 'admin' && m.at > t.seenAdminAt)
+        .where((m) => m.from == 'admin' && m.at > t.notifiedAdminAt)
         .toList();
     if (newAdmin.isNotEmpty) {
       final last = newAdmin.last;
-      t.seenAdminAt = last.at;
+      t.notifiedAdminAt = last.at;
       changed = true;
       final body =
           last.text.length > 120 ? '${last.text.substring(0, 120)}…' : last.text;
@@ -119,5 +119,6 @@ class FeedbackWatch {
     }
 
     if (changed) await saveFeedbackTickets(tickets);
+    await refreshFeedbackUnread();
   }
 }

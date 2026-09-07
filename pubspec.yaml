@@ -1,7 +1,7 @@
 name: stocktw
 description: "專業台股 App — 即時報價、K 線技術指標、持倉損益、到價提醒"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.17+18
 
 environment:
   sdk: ^3.13.0
@@ -26,6 +26,7 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.4.0
   home_widget: ^0.9.4
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:

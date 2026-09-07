@@ -12,6 +12,7 @@ import '../widgets.dart';
 import 'dca_page.dart';
 import 'dividend_calc_page.dart';
 import 'ex_calendar_page.dart';
+import 'feedback_page.dart';
 import 'glossary_page.dart';
 import 'goal_calc_page.dart';
 import 'heatmap_page.dart';
@@ -98,10 +99,20 @@ class _HomePageState extends ConsumerState<HomePage> {
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const SearchPage())),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const SettingsPage())),
+          ValueListenableBuilder<int>(
+            valueListenable: feedbackUnread,
+            builder: (_, n, child) => IconButton(
+              icon: Badge(
+                isLabelVisible: n > 0,
+                label: Text('$n'),
+                child: const Icon(Icons.settings_outlined),
+              ),
+              onPressed: () async {
+                await Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const SettingsPage()));
+                refreshFeedbackUnread();
+              },
+            ),
           ),
         ],
       ),

@@ -65,7 +65,8 @@ class FbTicket {
   final int priority;
   final int createdAt;
   List<FbMsg> messages;
-  int seenAdminAt; // 已在本機通知過的最後一則 admin 訊息時間
+  int seenAdminAt; // 使用者「真的點進去看過」的最後一則 admin 訊息時間
+  int notifiedAdminAt; // 已在本機發過通知的最後一則 admin 訊息時間
   String? stockCode; // 報價/資料錯誤類：相關個股
   String? stockName;
   int rating; // 結案後使用者滿意度 0=未評 1=不滿意 2=普通 3=滿意
@@ -74,11 +75,24 @@ class FbTicket {
   FbTicket(this.id, this.category, this.subject, this.status, this.priority,
       this.createdAt, this.messages,
       {this.seenAdminAt = 0,
+      this.notifiedAdminAt = 0,
       this.stockCode,
       this.stockName,
       this.rating = 0,
       this.needStock = false,
       this.needPhoto = false});
+
+  /// 有沒有「使用者還沒看過」的開發者回覆
+  bool get hasUnreadAdmin =>
+      messages.any((m) => m.from == 'admin' && m.at > seenAdminAt);
+
+  int get lastAdminAt {
+    var t = 0;
+    for (final m in messages) {
+      if (m.from == 'admin' && m.at > t) t = m.at;
+    }
+    return t;
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -89,6 +103,7 @@ class FbTicket {
         'createdAt': createdAt,
         'messages': messages.map((m) => m.toJson()).toList(),
         'seenAdminAt': seenAdminAt,
+        'notifiedAdminAt': notifiedAdminAt,
         if (stockCode != null) 'stockCode': stockCode,
         if (stockName != null) 'stockName': stockName,
         'rating': rating,
@@ -106,6 +121,8 @@ class FbTicket {
             .map((e) => FbMsg.fromJson(e as Map))
             .toList(),
         seenAdminAt: (j['seenAdminAt'] ?? 0) as int,
+        notifiedAdminAt:
+            (j['notifiedAdminAt'] ?? j['seenAdminAt'] ?? 0) as int,
         stockCode: j['stockCode'] as String?,
         stockName: j['stockName'] as String?,
         rating: (j['rating'] ?? 0) as int,
@@ -132,6 +149,58 @@ Future<List<FbTicket>> loadFeedbackTickets() async {
 Future<void> saveFeedbackTickets(List<FbTicket> ts) async {
   final sp = await SharedPreferences.getInstance();
   await sp.setString(_prefsKey, jsonEncode(ts.map((t) => t.toJson()).toList()));
+}
+
+/// 未讀的開發者回覆數（給主頁齒輪、意見反饋入口顯示紅點用）。
+/// App 各處以 ValueListenableBuilder 監聽，收到回覆或使用者看過都會刷新。
+final ValueNotifier<int> feedbackUnread = ValueNotifier<int>(0);
+
+Future<void> refreshFeedbackUnread() async {
+  try {
+    final ts = await loadFeedbackTickets();
+    feedbackUnread.value = ts.where((t) => t.hasUnreadAdmin).length;
+  } catch (_) {}
+}
+
+bool _fbReplyPrompted = false;
+
+/// App 啟動後叫一次：若有沒看過的開發者回覆，跳一個明顯的對話框提醒。
+Future<void> maybeShowFeedbackReplies(BuildContext context) async {
+  if (_fbReplyPrompted) return;
+  _fbReplyPrompted = true;
+  final ts = await loadFeedbackTickets();
+  final unread = ts.where((t) => t.hasUnreadAdmin).toList();
+  feedbackUnread.value = unread.length;
+  if (unread.isEmpty || !context.mounted) return;
+  final one = unread.first;
+  await showDialog<void>(
+    context: context,
+    builder: (c) => AlertDialog(
+      icon: const Icon(Icons.mark_chat_unread_outlined, color: AppColors.accent),
+      title: Text(unread.length == 1
+          ? '開發者回覆了你的意見反饋'
+          : '開發者回覆了 ${unread.length} 則意見反饋'),
+      content: Text(
+        unread.length == 1
+            ? '「${one.subject}」有新回覆，點開看看。'
+            : '有 ${unread.length} 則反饋收到新回覆，點開看看。',
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(c), child: const Text('稍後')),
+        FilledButton(
+          onPressed: () {
+            Navigator.pop(c);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FeedbackPage()),
+            );
+          },
+          child: const Text('查看'),
+        ),
+      ],
+    ),
+  );
 }
 
 String _fmt(int ms) {
@@ -216,21 +285,25 @@ class _FeedbackPageState extends State<FeedbackPage> {
             if (!seen.contains('${m.from}:${m.at}')) t.messages.add(m);
           }
           t.messages.sort((a, b) => a.at.compareTo(b.at));
-          // 使用者已在 App 內看到，標記為已讀，避免監聽器又發一次通知
-          for (final m in t.messages) {
-            if (m.from == 'admin' && m.at > t.seenAdminAt) t.seenAdminAt = m.at;
+          // 收到回覆但使用者還沒點進去看 → 不動 seenAdminAt，讓列表維持「新回覆」標記；
+          // 只把 notifiedAdminAt 補上，避免監聽器重覆發通知。
+          if (t.lastAdminAt > t.notifiedAdminAt) {
+            t.notifiedAdminAt = t.lastAdminAt;
           }
         } catch (_) {}
       }
       await saveFeedbackTickets(local);
     }
+    await refreshFeedbackUnread();
     if (mounted) {
       setState(() {
-        int rank(FbTicket t) => t.status == 'pending_user_close'
-            ? 0
-            : t.status == 'closed'
-                ? 2
-                : 1;
+        int rank(FbTicket t) {
+          if (t.hasUnreadAdmin) return 0; // 有新回覆的排最前面
+          if (t.status == 'pending_user_close') return 1;
+          if (t.status == 'closed') return 3;
+          return 2;
+        }
+
         _tickets = local
           ..sort((a, b) {
             final r = rank(a).compareTo(rank(b));
@@ -294,6 +367,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                             : null;
                         final hasReply =
                             t.messages.any((m) => m.from == 'admin');
+                        final unread = t.hasUnreadAdmin;
                         return Dismissible(
                           key: ValueKey(t.id),
                           direction: DismissDirection.endToStart,
@@ -330,6 +404,9 @@ class _FeedbackPageState extends State<FeedbackPage> {
                                 (x) => x.id == t.id));
                           },
                           child: ListTile(
+                          tileColor: unread
+                              ? AppColors.accent.withValues(alpha: 0.10)
+                              : null,
                           onTap: () async {
                             await Navigator.push(
                               context,
@@ -339,11 +416,26 @@ class _FeedbackPageState extends State<FeedbackPage> {
                             _refresh();
                           },
                           leading: _priorityDot(t.priority, t.status),
-                          title: Text(t.subject,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w700)),
+                          title: Row(
+                            children: [
+                              if (unread)
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  margin: const EdgeInsets.only(right: 6),
+                                  decoration: const BoxDecoration(
+                                      color: AppColors.down,
+                                      shape: BoxShape.circle),
+                                ),
+                              Expanded(
+                                child: Text(t.subject,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                            ],
+                          ),
                           subtitle: Text(
                             '${categoryOf(t.category).label}'
                             '${last != null ? '　${last.from == 'admin' ? '開發者：' : ''}${last.text}' : ''}',
@@ -356,7 +448,21 @@ class _FeedbackPageState extends State<FeedbackPage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              if (t.status == 'pending_user_close')
+                              if (unread)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.down,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Text('新回覆',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white)),
+                                )
+                              else if (t.status == 'pending_user_close')
                                 Text('待你確認',
                                     style: TextStyle(
                                         fontSize: 11,
@@ -703,6 +809,23 @@ class FbTicketDetailPageState extends State<TicketDetailPage> {
   final _c = TextEditingController();
   bool _sending = false;
   List<String> _fuImages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // 使用者實際點進來看了 → 標記已讀，清掉「新回覆」紅點
+    _markSeen();
+  }
+
+  Future<void> _markSeen() async {
+    final t = widget.ticket;
+    final la = t.lastAdminAt;
+    if (la <= t.seenAdminAt) return;
+    t.seenAdminAt = la;
+    if (t.notifiedAdminAt < la) t.notifiedAdminAt = la;
+    await _persistLocal();
+    await refreshFeedbackUnread();
+  }
 
   Future<void> _addFollowUp() async {
     final text = _c.text.trim();
